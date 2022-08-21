@@ -48,7 +48,6 @@ void tile_callback(const tile_t &tile) {
 }
 
 int main() {
-
   // defaults to detecting winding order
   set_options(tile_callback, X4);
 
@@ -116,14 +115,11 @@ the upper-left corner and ending at `w, h` in the lower-right corner.
 
 Pretty Poly provides a simple way to get the value of a specific coordinate of the tile.
 
+The `tile` object provides a `get_value()` method which always returns a value between 
+0..255 - this is slower that reading the tile data directly (since we need a function 
+call per pixel) but can be helpful to get up and running more quickly.
 
 ```c++
-// Simpler (but slower) example callback
-// -------------------------------------
-// the `tile` object provides a `get_value()` method which always returns a 
-// value between 0..255 - this is slower that reading the tile data directly 
-// (since we need a function call per pixel) but can be helpful to get up 
-// and running more quickly.
 void callback(const tile_t &tile) {
   for(auto y = 0; y < tile.h; y++) {
     for(auto x = 0; x < tile.w; x++) {      
@@ -152,34 +148,31 @@ You can also potentially optimise in other ways:
 - scale `value` to better match your framebuffer format
 - scale `value` in other ways (not necessarily linear!) to apply effects
 
+Here we assume we're using X4 supersampling (so 2 bits per pixel) - this is 
+not intended to show the fastest possibly implementation but rather a way that's 
+relatively straightforward to understand.
+
 ```c++
-// Example code
-// ------------
-// if we we're using X4 sampling then our buffer has two bits of data per
-// pixel. this is not the fastest way to process the tile image data but 
-// it's relatively straightforward to understand.
 void callback(const tile_t &tile) {
   static uint8_t alpha[4] {0, 85, 170, 255}; // map sampling results to alpha values
+
   uint8_t *data = (uint8_t *)tile.data;
   for(auto y = 0; y < tile.h; y++) {
     // get pointer to start of row
     uint8_t *row = &data[tile.stride * y];
     for(auto x = 0; x < tile.w; x++) {
-      // work out index of byte in row
+      // work out index of byte in row and number of bits to shift
       uint byte = x >> 2;
-      // work out shift of bits in byte
       uint shift = 6 - (x & 0b11) * 2;
+
       // value will contain 0..3 (0 = transparent, 1..2 blend levels, 3 = opaque)
       uint value = (row[byte] >> shift) & 0b11;      
+
       // call your blend function
       blend(framebuffer, tile.x + x, tile.y + y, alpha[value], colour);
     }
   }
 }
-
-
-
-
 ```
 
 - Include the header only library in your source file `#include "pretty-poly.hpp"`
