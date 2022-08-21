@@ -4,15 +4,73 @@
 
 ## Why?
 
-To generate high quality vector graphics, including text, on relatively low dot pitch displays it is necessary to use anti-aliasing. This applies especially to displays often attached to microcontrollers like LED matrices and small LCD screens which have relatively low resolutions.
+To generate high quality vector graphics, including text, on relatively low dot pitch displays it is necessary to use anti-aliasing. This applies especially to displays often attached to microcontrollers like LED matrices and small LCD screens.
 
-Microcontrollers generally can't drive very high resolution displays (beyond 320x240 or so) because they lack the high speed peripherals and rarely have enough memory to store such a large framebuffer. Anti-aliasing is a method that provides a huge quality boost at these lower resolutions.
+Microcontrollers generally can't drive very high resolution displays (beyond 320x240 or so) because they lack the high speed peripherals and rarely have enough memory to store such a large framebuffer. 
 
-> Pretty Poly was initially part of [Pretty Alright Fonts](https://github.com/lowfatcode/pretty-alright-fonts) but general purpose anti-aliased polygon rendering has many other uses so it is broken out as a sibling project.
+Anti-aliasing is a method that provides a huge quality boost at these lower resolutions.
+
+> Pretty Poly was initially created for [Pretty Alright Fonts](https://github.com/lowfatcode/pretty-alright-fonts) but it has many other uses so is broken out as a sibling project that can be used in isolation.
+
+Pretty Poly provides an antialiased, pixel format agnostic, complex polygon drawing routine designed specifically for use on microcontrollers.
 
 ## Approach
 
-Pretty Poly is a tile-based renderer that calls back into your code with each tile of output so that it can be blended into the framebuffer. This allows Pretty Poly to focus only on drawing polygons and worrying about what format the framebuffer is.
+Pretty Poly is a tile-based renderer that calls back into your code with each tile of output so that it can be blended into the framebuffer. This allows it to use minimal memory and focus purely on drawing polygons without worrying about what format the framebuffer is.
+
+Features:
+
+- render complex polygons (concave, self-intersecting, holey, etc.)
+- header only library - simply copy the header file into your project
+- minimal memory usage - only requires ~2kB for tile buffer and node lists which is statically allocated
+- no divide operation used during render
+- floating point, fixed point, and integer variants
+- 4x and 16x super sampling support (or not antialiasing if preffered)
+- automatic winding order detection for outlines and holes
+- supply a clip rectangle and all results will be fully clipped meaing you can avoid extra bounds checks
+- pixel format agnostic - renders polygons as a "mask" for you to blend into your framebuffer
+
+## Using Pretty Poly
+
+Pretty Poly is a header only C++ library.
+
+Making use of it is as easy as copying `pretty-poly.hpp` into your project and including it in the source 
+file where you need to access the methods.
+
+First of all you must call `set_options()` to configure your callback function and any other settings you
+wish to use and then you can call `draw_polygon` at any time passing in one or more contours of points.
+
+A basic example might look like:
+
+```c++
+void tile_callback(const tile_t &tile) {
+  // process the tile image data here - see below for details
+}
+
+int main() {
+
+  // defaults to detecting winding order
+  set_options(tile_callback, X4);
+
+  // for a single contour we can just pass the points in as an array
+  int a_outer[46] = { // outer edge of letter "a" (x1, y1, x2, y2, ...)
+    36, 0, 34, -5, 21, 1, 16, 0, 8, -4, 2, -16, 6, -24, 15, -31, 28, -34, 
+    34, -34, 34, -37, 27, -44, 21, -38, 4, -38, 4, -41, 11, -47, 21, -51,
+    33, -51, 43, -47, 51, -37, 51, -13, 53, -1, 53, 0
+  };
+  draw_polygon(a_outer, 23);
+
+  // but for shapes with holes we need to pass in multiple contours
+  int a_inner[12] = { // inner hole of letter "a" (x1, y1, x2, y2, ...)
+    25, -11, 34, -16, 34, -25, 29, -25, 24, -24, 20, -17
+  };
+  draw_polygon(a_outer, 23, a_inner, 6);
+
+  return 0;
+}
+```
+
+See the [`set_options`](#setoptionscallback-antialiasing-flags) section for details on what different options are supported.
 
 ## Implementing the tile renderer callback
 
@@ -119,16 +177,7 @@ void callback(const tile_t &tile) {
   }
 }
 
-int main() {
 
-  // defaults to detecting winding order
-  set_options(callback, X4);
-
-  // called with an initialiser list of floats x1, y1, x2, y2, x3, y3, etc...
-  draw_polygon({10.0f, 5.0f});
-
-  return 0;
-}
 
 
 ```
