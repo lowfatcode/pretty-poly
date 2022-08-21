@@ -1,3 +1,5 @@
+<img width="250" alt="pretty-poly" src="https://user-images.githubusercontent.com/297930/185789112-59e12fb4-e4ab-4fa1-bf2d-5c16e39d6dc9.png">
+
 # Pretty Poly - super-sampling polygon renderer for low resource platforms.
 
 ## Why?
