@@ -48,7 +48,7 @@ void tile_callback(const tile_t &tile) {
 }
 
 int main() {
-  // defaults to detecting winding order
+  // X4 (2x2) supersampling - defaults to detecting winding order
   set_options(tile_callback, X4);
 
   // for a single contour we can just pass the points in as an array
