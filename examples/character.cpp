@@ -33,7 +33,7 @@ void callback(const tile_t &tile) {
 
 int main() {
   
-  set_options(callback, X2, {0, 0, WIDTH, HEIGHT});
+  set_options(callback, X4, {0, 0, WIDTH, HEIGHT});
   
   uint32_t t = time();
 
