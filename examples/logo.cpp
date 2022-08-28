@@ -47,6 +47,27 @@ map<char, command_t> command_map = {
   {'c', CUBIC_BEZIER_RELATIVE}
 };
 
+/*
+  def bezier_point(t, points):
+    if len(points) == 1:
+      return points[0]
+    a = Segment.bezier_point(t, points[:-1])
+    b = Segment.bezier_point(t, points[1:])
+    return Point((1 - t) * a.x + t * b.x, (1 - t) * a.y + t * b.y)
+    */
+
+// 
+
+point_t<int> point_on_cubic_bezier(float t, point_t<int> s, point_t<int> cp1, point_t<int> cp2, point_t<int> e) {
+  float t2 = t * t;
+  float t3 = t * t * t;
+
+  return s + (-s * 3 + (s * 3 - s * t) * t) * t
+    + (cp1 * 3 + (cp1 * -6 + cp1 * 3 * t) * t) * t
+    + (cp2 * 3 - cp2 * 3 * t) * t2
+    + e * t3;
+}
+
 // determine if this token has a command and if so return it
 command_t check_for_command(string_view token) {
   char c = token[0];
@@ -64,12 +85,12 @@ bool check_for_close_path(string_view token) {
 // extract the next token from the path
 string_view get_next_token(string_view &path) {
   size_t split_at = path.find(" ");
-  if(split_at == string_view::npos) {
-    // no more tokens to parse, get outta here
-    return "";
-  }  
   string_view token = path.substr(0, split_at);
-  path = path.substr(token.size() + 1);  
+  if(split_at == string_view::npos) {    
+    path = path.substr(path.size());    
+  }else{
+    path = path.substr(split_at + 1);  
+  }
   return token;
 }
 
@@ -77,22 +98,27 @@ int token_to_int(string_view t) {
   int r; from_chars(t.data(), t.data() + t.size(), r); return r;
 };
 
-vector<contour_t<int>> parse_svg_path(string_view path) {
+// parses the next contour from this svg path and returns it
+// as a vector of points, the string_view is modified to remove
+// the extracted contour
+point_t<int> last(0, 0);
+contour_t<int> parse_svg_path_contour(string_view &path) {
+  vector<point_t<int>> points;
   command_t command = command_t::NONE;
 
-  vector<contour_t<int>> contours;
-  contours.resize(1);
+  printf("> start of contour\n");
 
-  int lx, ly; // last x and y
-  while(path.size() > 0) {
+  while(true) {
     string_view x_token = get_next_token(path);
+
+    // no more tokens, end of contour
     if(x_token.size() == 0) {
       break;
     }
 
     if(check_for_command(x_token) != command_t::NONE) {
       // new path command
-      printf("change command to %d\n", command);
+      printf("  - change command to %d\n", command);
       command = check_for_command(x_token);
       x_token = x_token.substr(1); // chop the processed command off
     }
@@ -100,12 +126,13 @@ vector<contour_t<int>> parse_svg_path(string_view path) {
     string_view y_token = get_next_token(path);
 
     // extract control points and end point    
-    int c1x, c1y, c2x, c2y;
+    point_t<int> c1;
+    point_t<int> c2;
     if(command == CUBIC_BEZIER_RELATIVE) {
-      c1x = token_to_int(x_token) + lx;
-      c1y = token_to_int(y_token) + ly;
-      c2x = token_to_int(get_next_token(path)) + lx;
-      c2y = token_to_int(get_next_token(path)) + ly;
+      c1.x = token_to_int(x_token) + last.x;
+      c1.y = token_to_int(y_token) + last.y;
+      c2.x = token_to_int(get_next_token(path)) + last.x;
+      c2.y = token_to_int(get_next_token(path)) + last.y;
       x_token = get_next_token(path);
       y_token = get_next_token(path);
     }
@@ -115,45 +142,50 @@ vector<contour_t<int>> parse_svg_path(string_view path) {
       y_token = y_token.substr(0, y_token.size() - 1);
     }
 
-    int x = token_to_int(x_token);
-    int y = token_to_int(y_token);
+    point_t<int> point(token_to_int(x_token), token_to_int(y_token));
 
     if(command == MOVE) {
-      contours[contours.size() - 1].points.push_back(x);
-      contours[contours.size() - 1].points.push_back(y);
+      points.push_back(point);
+      printf("  + %d, %d\n", point.x, point.y);
     }
 
     if(command == MOVE_RELATIVE) {
-      x += lx;
-      y += ly;
-      contours[contours.size() - 1].points.push_back(x);
-      contours[contours.size() - 1].points.push_back(y);
+      point += last;
+      points.push_back(point);
+      printf("  + %d, %d\n", point.x, point.y);
     }
 
     if(command == CUBIC_BEZIER_RELATIVE) {
-      x += lx;
-      y += ly;
-
-      int mpx = (lx + x + c1x + c2x) / 4;
-      int mpy = (ly + y + c1y + c2y) / 4;
-      contours[contours.size() - 1].points.push_back(mpx);
-      contours[contours.size() - 1].points.push_back(mpy);      
-
-      contours[contours.size() - 1].points.push_back(x);
-      contours[contours.size() - 1].points.push_back(y);      
+      point += last;
+      // decompose a few points from the curve and add them to smooth things out
+      points.push_back(point_on_cubic_bezier(0.25, last, c1, c2, point));
+      points.push_back(point_on_cubic_bezier(0.50, last, c1, c2, point));
+      points.push_back(point_on_cubic_bezier(0.75, last, c1, c2, point));
+      points.push_back(point);
+      printf("  + %d, %d (bezier)\n", point.x, point.y);
     }
 
-    printf("+ %d, %d\n", x, y);
+    last = point;
 
     if(close_path) {
-      printf("close path\n");
-      contours.resize(contours.size() + 1);
+      printf("  - end of contour\n");
+      break;
     }
-
-    lx = x;
-    ly = y;
   }
 
+  contour_t<int> contour(new point_t<int>[points.size()], points.size());
+  for(auto i = 0; i < points.size(); i++) {
+    contour.points[i] = points[i];
+  }
+  return contour;
+}
+
+vector<contour_t<int>> parse_svg_path(string_view path) {
+  last = point_t<int>(0, 0);
+  vector<contour_t<int>> contours;
+  while(path.size() > 0) {
+    contours.push_back(parse_svg_path_contour(path));
+  }
   return contours;
 }
 
@@ -169,18 +201,22 @@ int main() {
   // determine extreme bounds
   rect_t bounds = contours[0].bounds();
   for(auto &contour : contours) {
-    bounds = bounds.merge(contour.bounds());
+    rect_t cb = contour.bounds();
+    bounds = bounds.merge(cb);
   }
 
   // scale contours to same size as canvas
   int scale = bounds.w > bounds.h ? bounds.w : bounds.h;  
   for(auto &contour : contours) {
-    for(auto i = 0; i < contour.points.size(); i += 2) {
-      contour.points[i + 0] = ((contour.points[i + 0] - bounds.x) * WIDTH) / scale;
-      contour.points[i + 1] = ((contour.points[i + 1] - bounds.y) * WIDTH) / scale;
+    for(auto i = 0; i < contour.count; i++) {
+      point_t<int> &point = contour.points[i];
+      point -= point_t<int>(bounds.x, bounds.y);
+      point *= WIDTH;
+      point /= scale;
     }
   }
 
+  draw_polygon(contours);
   draw_polygon(contours);
 
   stbi_write_png("/tmp/out.png", WIDTH, HEIGHT, 4, (void *)buf, WIDTH * sizeof(uint32_t));

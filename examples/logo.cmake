@@ -1,4 +1,10 @@
-add_executable(
+
+xwin_add_executable(
   logo
-  logo.cpp
+  "logo.cpp"
+)
+
+target_link_libraries(
+  logo
+  CrossWindow
 )

@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <algorithm>
 
+#include "pretty-poly-types.hpp"
+
 using namespace std;
 
 #ifdef PP_DEBUG
@@ -12,32 +14,6 @@ using namespace std;
 namespace pretty_poly {
 
   enum antialias_t {NONE = 0, X4 = 1, X16 = 2};
-
-  struct rect_t {
-    int x, y, w, h;    
-
-    rect_t() : x(0), y(0), w(0), h(0) {}
-    rect_t(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) {}
-
-    bool empty() const {return this->w == 0 && this->h == 0;}
-
-    rect_t intersection(const rect_t &c) {
-      return rect_t(
-        max(this->x, c.x), max(this->y, c.y),
-        max(0, min(int(this->x + this->w), int(c.x + c.w)) - max(this->x, c.x)),
-        max(0, min(int(this->y + this->h), int(c.y + c.h)) - max(this->y, c.y))
-      );
-    }
-
-    rect_t merge(const rect_t &c) {
-      return rect_t(
-        min(this->x, c.x),
-        min(this->y, c.y),
-        max(this->x + this->w, c.x + c.w) - min(this->x, c.x),
-        max(this->y + this->h, c.y + c.h) - min(this->y, c.y)
-      );
-    }
-  };
 
   struct tile_t {
     rect_t bounds;
@@ -51,19 +27,23 @@ namespace pretty_poly {
     }
   };
 
-  template<typename T> struct contour_t {
-    vector<T> points;
+  template<typename T>
+  struct contour_t {
+    point_t<T> *points;
+    unsigned count;
+
     contour_t() {}
-    contour_t(vector<T> points) : points(points) {};
+    contour_t(vector<point_t<T>> v) : points(v.data()), count(v.size()) {};
+    contour_t(point_t<T> *points, unsigned count) : points(points), count(count) {};
 
     rect_t bounds() {
-      T minx = this->points[0], maxx = minx;
-      T miny = this->points[1], maxy = miny;
-      for(auto i = 2; i < this->points.size(); i += 2) {
-        int cx = this->points[i + 0];
-        int cy = this->points[i + 1];
-        minx = min(minx, cx); miny = min(miny, cy);
-        maxx = max(maxx, cx); maxy = max(maxy, cy);
+      T minx = this->points[0].x, maxx = minx;
+      T miny = this->points[0].y, maxy = miny;
+      for(auto i = 1; i < this->count; i++) {
+        minx = min(minx, this->points[i].x);
+        miny = min(miny, this->points[i].y);
+        maxx = max(maxx, this->points[i].x); 
+        maxy = max(maxy, this->points[i].y);
       }
       return rect_t(minx, miny, maxx - minx, maxy - miny);
     }
@@ -111,6 +91,7 @@ namespace pretty_poly {
   void debug_tile(const tile_t &tile) {
     debug("  - tile %d, %d (%d x %d)\n", tile.bounds.x, tile.bounds.y, tile.bounds.w, tile.bounds.h);
     for(auto y = 0; y < tile.bounds.h; y++) {
+      debug("[%3d]: ", y);
       for(auto x = 0; x < tile.bounds.w; x++) {
         debug("%d", tile.get_value(x, y));
       }  
@@ -119,11 +100,13 @@ namespace pretty_poly {
     debug("-----------------------\n");
   }
 
-
-  void add_line_segment_to_nodes(int sx, int sy, int ex, int ey) {
+  template<typename T>
+  void add_line_segment_to_nodes(const point_t<T> &start, const point_t<T> &end) {
     // swap endpoints if line "pointing up", we do this because we
     // alway skip the last scanline (so that polygons can but cleanly
     // up against each other without overlap)
+    int sx = start.x, sy = start.y, ex = end.x, ey = end.y;
+
     if(ey < sy) {
       swap(sy, ey);
       swap(sx, ex);
@@ -165,20 +148,33 @@ namespace pretty_poly {
     }
   }
 
-  template<typename C>
-  void build_nodes(const contour_t<C> &contour, const tile_t &tile) {
+  template<typename T>
+  void build_nodes(const contour_t<T> &contour, const tile_t &tile) {
     // start with the last point to close the loop
-    int lx = contour.points[contour.points.size() - 2] - tile.bounds.x;
-    int ly = contour.points[contour.points.size() - 1] - tile.bounds.y;
+    point_t<T> last = contour.points[contour.count - 1];
+    last.x -= tile.bounds.x;
+    last.y -= tile.bounds.y;
+    // int lx = contour.points[contour.points.size() - 2] - tile.bounds.x;
+    // int ly = contour.points[contour.points.size() - 1] - tile.bounds.y;
 
-    for(int i = 0; i < contour.points.size(); i += 2) {
-      int x = contour.points[i + 0] - tile.bounds.x;
-      int y = contour.points[i + 1] - tile.bounds.y;
+    for(int i = 0; i < contour.count; i++) {
+      point_t<T> point = contour.points[i];
+      point.x -= tile.bounds.x;
+      point.y -= tile.bounds.y;
 
-      add_line_segment_to_nodes(lx, ly, x, y);
+      add_line_segment_to_nodes(last, point);
       
-      lx = x; ly = y;
-    };
+      last = point;
+    }
+
+    // for(int i = 0; i < contour.points.size(); i += 2) {
+    //   int x = contour.points[i + 0] - tile.bounds.x;
+    //   int y = contour.points[i + 1] - tile.bounds.y;
+
+    //   add_line_segment_to_nodes(lx, ly, x, y);
+      
+    //   lx = x; ly = y;
+    // };
   }
 
   void render_nodes(const tile_t &tile) {
@@ -211,7 +207,7 @@ namespace pretty_poly {
     std::vector<contour_t<T>> contours;
     contour_t<T> c(points, count);
     contours.push_back(c);
-    draw_polygon(contours);
+    draw_polygon<T>(contours);
   }
   
   template<typename T>
@@ -254,9 +250,9 @@ namespace pretty_poly {
         memset(tile.data, 0, tile_buffer_size);
 
         // build the nodes for each contour
-        for(auto &contour : contours) {
+        for(contour_t<T> &contour : contours) {
           debug("    : build nodes for contour\n");
-          build_nodes(contour, tile);
+          build_nodes<T>(contour, tile);
         }
 
         debug("    : render the tile\n");
