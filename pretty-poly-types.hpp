@@ -66,6 +66,7 @@ namespace pretty_poly {
   template<typename T> inline point_t<T> operator+  (point_t<T> lhs, const point_t<T> &rhs) { lhs += rhs; return lhs; }
   template<typename T> inline point_t<T> operator*  (point_t<T> lhs, const float rhs) { lhs *= rhs; return lhs; }
   template<typename T> inline point_t<T> operator*  (point_t<T> lhs, const point_t<T> &rhs) { lhs *= rhs; return lhs; }
+  template<typename T> inline point_t<T> operator*  (point_t<T> lhs, const mat3_t &rhs) { lhs *= rhs; return lhs; }
   template<typename T> inline point_t<T> operator/  (point_t<T> lhs, const float rhs) { lhs /= rhs; return lhs; }
   template<typename T> inline point_t<T> operator/  (point_t<T> lhs, const point_t<T> &rhs) { lhs.x /= rhs.x; lhs.y /= rhs.y; return lhs; }
 

@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <algorithm>
+#include <optional>
 
 #include "pretty-poly-types.hpp"
 
@@ -100,8 +101,7 @@ namespace pretty_poly {
     debug("-----------------------\n");
   }
 
-  template<typename T>
-  void add_line_segment_to_nodes(const point_t<T> &start, const point_t<T> &end) {
+  void add_line_segment_to_nodes(const point_t<int> &start, const point_t<int> &end) {
     // swap endpoints if line "pointing up", we do this because we
     // alway skip the last scanline (so that polygons can but cleanly
     // up against each other without overlap)
@@ -112,10 +112,10 @@ namespace pretty_poly {
       swap(sx, ex);
     }
 
-    sx <<= settings::antialias;
+    /*sx <<= settings::antialias;
     ex <<= settings::antialias;
     sy <<= settings::antialias;
-    ey <<= settings::antialias;
+    ey <<= settings::antialias;*/
 
     int x = sx;
     int y = sy;
@@ -149,32 +149,26 @@ namespace pretty_poly {
   }
 
   template<typename T>
-  void build_nodes(const contour_t<T> &contour, const tile_t &tile) {
+  void build_nodes(const contour_t<T> &contour, const tile_t &tile, point_t<int> origin = point_t<int>(0, 0), int scale = 65536) {
+    int ox = (origin.x - tile.bounds.x) << settings::antialias;
+    int oy = (origin.y - tile.bounds.y) << settings::antialias;
+
     // start with the last point to close the loop
-    point_t<T> last = contour.points[contour.count - 1];
-    last.x -= tile.bounds.x;
-    last.y -= tile.bounds.y;
-    // int lx = contour.points[contour.points.size() - 2] - tile.bounds.x;
-    // int ly = contour.points[contour.points.size() - 1] - tile.bounds.y;
+    point_t<int> last(
+      (((contour.points[contour.count - 1].x * scale) << settings::antialias) / 65536) + ox, 
+      (((contour.points[contour.count - 1].y * scale) << settings::antialias) / 65536) + oy
+    );
 
     for(int i = 0; i < contour.count; i++) {
-      point_t<T> point = contour.points[i];
-      point.x -= tile.bounds.x;
-      point.y -= tile.bounds.y;
+      point_t<int> point(
+        (((contour.points[i].x * scale) << settings::antialias) / 65536) + ox,
+        (((contour.points[i].y * scale) << settings::antialias) / 65536) + oy
+      );
 
       add_line_segment_to_nodes(last, point);
       
       last = point;
     }
-
-    // for(int i = 0; i < contour.points.size(); i += 2) {
-    //   int x = contour.points[i + 0] - tile.bounds.x;
-    //   int y = contour.points[i + 1] - tile.bounds.y;
-
-    //   add_line_segment_to_nodes(lx, ly, x, y);
-      
-    //   lx = x; ly = y;
-    // };
   }
 
   void render_nodes(const tile_t &tile) {
@@ -211,9 +205,13 @@ namespace pretty_poly {
   }
   
   template<typename T>
-  void draw_polygon(std::vector<contour_t<T>> contours) {    
+  void draw_polygon(std::vector<contour_t<T>> contours, point_t<int> origin = point_t<int>(0, 0), int scale = 65536) {    
 
     debug("> draw polygon with %lu contours\n", contours.size());
+
+    if(contours.size() == 0) {
+      return;
+    }
 
     // determine extreme bounds
     rect_t polygon_bounds = contours[0].bounds();
@@ -221,10 +219,10 @@ namespace pretty_poly {
       polygon_bounds = polygon_bounds.merge(contour.bounds());
     }
 
- 
-    // TODO: apply arbitrary transform of points if requested
-    // question:  is this a feature we want to add to pretty poly?
-
+    polygon_bounds.x = ((polygon_bounds.x * scale) / 65536) + origin.x;
+    polygon_bounds.y = ((polygon_bounds.y * scale) / 65536) + origin.y;
+    polygon_bounds.w = ((polygon_bounds.w * scale) / 65536);
+    polygon_bounds.h = ((polygon_bounds.h * scale) / 65536);
 
     debug("  - bounds %d, %d (%d x %d)\n", polygon_bounds.x, polygon_bounds.y, polygon_bounds.w, polygon_bounds.h);
     debug("  - clip %d, %d (%d x %d)\n", settings::clip.x, settings::clip.y, settings::clip.w, settings::clip.h);
@@ -252,7 +250,7 @@ namespace pretty_poly {
         // build the nodes for each contour
         for(contour_t<T> &contour : contours) {
           debug("    : build nodes for contour\n");
-          build_nodes<T>(contour, tile);
+          build_nodes(contour, tile, origin, scale);
         }
 
         debug("    : render the tile\n");
