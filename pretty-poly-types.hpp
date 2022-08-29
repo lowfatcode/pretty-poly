@@ -43,7 +43,7 @@ namespace pretty_poly {
   };
 
   // point type for contour points
-  template<typename T>
+  template<typename T = int>
   struct __attribute__ ((packed)) point_t {
     T x, y;
     point_t(T x, T y) : x(x), y(y) {}

@@ -23,10 +23,10 @@ void callback(const tile_t &tile) {
   for(auto y = 0; y < tile.bounds.h; y++) {
     for(auto x = 0; x < tile.bounds.w; x++) {     
       uint8_t alpha = tile.get_value(x, y) * (255 >> settings::antialias >> settings::antialias); 
-      uint8_t r = (234 * alpha) / 255;
-      uint8_t g = (78 * alpha) / 255;
-      uint8_t b = (63 * alpha) / 255;
-      buf[y + tile.bounds.y][x + tile.bounds.x] = r << 24 | g << 16 | b << 8 | 0xff;
+      uint8_t r = 234;
+      uint8_t g = 78;
+      uint8_t b = 63;
+      buf[y + tile.bounds.y][x + tile.bounds.x] = alpha << 24 | b << 16 | g << 8 | r;
     }
   }
 }
