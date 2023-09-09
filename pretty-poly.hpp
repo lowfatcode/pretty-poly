@@ -112,39 +112,57 @@ namespace pretty_poly {
       swap(sx, ex);
     }
 
+    // Early out if line is completely outside the tile
     if (ey < 0 || sy >= (int)node_buffer_size) return;
 
-    /*sx <<= settings::antialias;
-    ex <<= settings::antialias;
-    sy <<= settings::antialias;
-    ey <<= settings::antialias;*/
+    debug("      + line segment from %d, %d to %d, %d\n", sx, sy, ex, ey);
 
+    // Determine how many in-bounds lines to render
+    int y = std::max(0, sy);
+    int count = std::min((int)node_buffer_size, ey) - y;
+
+    // Handle cases where x is completely off to one side or other
+    if (std::max(sx, ex) <= 0) {
+      while (count--) {
+        nodes[y][node_counts[y]++] = 0;
+        ++y;
+      }
+      return;
+    }
+
+    const int full_tile_width = (tile_bounds.w << settings::antialias);
+    if (std::min(sx, ex) >= full_tile_width) {
+      while (count--) {
+        nodes[y][node_counts[y]++] = full_tile_width;
+        ++y;
+      }
+      return;
+    }
+
+    // Normal case
     int x = sx;
     int e = 0;
 
-    int xinc = sign(ex - sx);
-    int einc = abs(ex - sx) + 1;
-    int dy = ey - sy;
+    const int xinc = sign(ex - sx);
+    const int einc = abs(ex - sx) + 1;
+    const int dy = ey - sy;
 
+    // If sy < 0 jump to the start, note this does use a divide
+    // but potentially saves many wasted loops below, so is likely worth it.
     if (sy < 0) {
       e = einc * -sy;
       int xjump = e / dy;
       e -= dy * xjump;
       x += xinc * xjump;
-      sy = 0;
     }
 
-    int y = sy;
-
-    int count = std::min((int)node_buffer_size, ey) - sy;
-    debug("      + line segment from %d, %d to %d, %d\n", sx, sy, ex, ey);
     // loop over scanlines
     while(count--) {
       // consume accumulated error
       while(e > dy) {e -= dy; x += xinc;}
 
       // clamp node x value to tile bounds
-      int nx = std::max(std::min(x, (int)(tile_bounds.w << settings::antialias)), 0);        
+      int nx = std::max(std::min(x, full_tile_width), 0);        
       debug("      + adding node at %d, %d\n", x, y);
       // add node to node list
       nodes[y][node_counts[y]++] = nx;
