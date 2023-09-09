@@ -53,8 +53,9 @@ namespace pretty_poly {
   typedef void (*tile_callback_t)(const tile_t &tile);
 
   // buffer that each tile is rendered into before callback
+  // allocate one extra byte to allow a small optimization in the row renderer
   constexpr unsigned tile_buffer_size = 1024;
-  uint8_t tile_buffer[tile_buffer_size];
+  uint8_t tile_buffer[tile_buffer_size+1];
 
   // polygon node buffer handles at most 16 line intersections per scanline
   // is this enough for cjk/emoji? (requires a 2kB buffer)
@@ -201,6 +202,8 @@ namespace pretty_poly {
     bounds.y = 0;
     bounds.x = tile.bounds.w;
     int maxx = 0;
+    int anitialias_mask = (1 << settings::antialias) - 1;
+
     for(auto y = 0; y < (int)node_buffer_size; y++) {
       if(node_counts[y] == 0) {
         if (y == bounds.y) ++bounds.y;
@@ -209,6 +212,7 @@ namespace pretty_poly {
 
       std::sort(&nodes[y][0], &nodes[y][0] + node_counts[y]);
 
+      uint8_t* row_data = &tile.data[(y >> settings::antialias) * tile.stride];
       bool rendered_any = false;
       for(auto i = 0u; i < node_counts[y]; i += 2) {
         int sx = nodes[y][i + 0];
@@ -220,14 +224,36 @@ namespace pretty_poly {
 
         rendered_any = true;
 
-        bounds.x = std::min(sx >> settings::antialias, bounds.x);
         maxx = std::max((ex - 1) >> settings::antialias, maxx);
 
         debug(" - render span at %d from %d to %d\n", y, sx, ex);
 
-        for(int x = sx; x < ex; x++) {
-          tile.data[(x >> settings::antialias) + (y >> settings::antialias) * tile.stride]++;
-        }       
+        if (settings::antialias) {
+          int ax = sx >> settings::antialias;
+          const int aex = ex >> settings::antialias;
+
+          bounds.x = std::min(ax, bounds.x);
+
+          if (ax == aex) {
+            row_data[ax] += ex - sx;
+            continue;
+          }
+
+          row_data[ax] += (1 << settings::antialias) - (sx & anitialias_mask);
+          for(ax++; ax < aex; ax++) {
+            row_data[ax] += (1 << settings::antialias);
+          }
+
+          // This might add 0 to the byte after the end of the row, we pad the tile data
+          // by 1 byte to ensure that is OK
+          row_data[ax] += ex & anitialias_mask;
+        }
+        else {
+          bounds.x = std::min(sx, bounds.x);
+          for(int x = sx; x < ex; x++) {
+            row_data[x]++;
+          }       
+        }
       }
 
       if (rendered_any) {
