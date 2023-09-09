@@ -40,7 +40,7 @@ namespace pretty_poly {
     rect_t bounds() {
       T minx = this->points[0].x, maxx = minx;
       T miny = this->points[0].y, maxy = miny;
-      for(auto i = 1; i < this->count; i++) {
+      for(auto i = 1u; i < this->count; i++) {
         minx = min(minx, this->points[i].x);
         miny = min(miny, this->points[i].y);
         maxx = max(maxx, this->points[i].x); 
@@ -83,7 +83,7 @@ namespace pretty_poly {
   }
 
   // dy step (returns 1, 0, or -1 if the supplied value is > 0, == 0, < 0)
-  __attribute__((always_inline)) int sign(int v) {
+  inline constexpr int sign(int v) {
     // assumes 32-bit int/unsigned
     return ((unsigned)-v >> 31) - ((unsigned)v >> 31);
   }
@@ -134,7 +134,7 @@ namespace pretty_poly {
       // consume accumulated error
       while(e > dy) {e -= dy; x += xinc;}
 
-      if(y >= 0 && y < node_buffer_size) {  
+      if(y >= 0 && y < (int)node_buffer_size) {  
         // clamp node x value to tile bounds
         int nx = max(min(x, (int)(tile_bounds.w << settings::antialias)), 0);        
         debug("      + adding node at %d, %d\n", x, y);
@@ -155,14 +155,14 @@ namespace pretty_poly {
 
     // start with the last point to close the loop
     point_t<int> last(
-      (((contour.points[contour.count - 1].x * scale) << settings::antialias) / 65536) + ox, 
-      (((contour.points[contour.count - 1].y * scale) << settings::antialias) / 65536) + oy
+      (((int(contour.points[contour.count - 1].x) * scale) << settings::antialias) / 65536) + ox,
+      (((int(contour.points[contour.count - 1].y) * scale) << settings::antialias) / 65536) + oy
     );
 
-    for(int i = 0; i < contour.count; i++) {
+    for(auto i = 0u; i < contour.count; i++) {
       point_t<int> point(
-        (((contour.points[i].x * scale) << settings::antialias) / 65536) + ox,
-        (((contour.points[i].y * scale) << settings::antialias) / 65536) + oy
+        (((int(contour.points[i].x) * scale) << settings::antialias) / 65536) + ox,
+        (((int(contour.points[i].y) * scale) << settings::antialias) / 65536) + oy
       );
 
       add_line_segment_to_nodes(last, point);
@@ -172,14 +172,14 @@ namespace pretty_poly {
   }
 
   void render_nodes(const tile_t &tile) {
-    for(auto y = 0; y < node_buffer_size; y++) {
+    for(auto y = 0; y < (int)node_buffer_size; y++) {
       if(node_counts[y] == 0) {
         continue;
       }
 
       std::sort(&nodes[y][0], &nodes[y][0] + node_counts[y]);
 
-      for(auto i = 0; i < node_counts[y]; i += 2) {
+      for(auto i = 0u; i < node_counts[y]; i += 2) {
         int sx = nodes[y][i + 0];
         int ex = nodes[y][i + 1];
 

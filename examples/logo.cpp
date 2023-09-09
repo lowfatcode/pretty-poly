@@ -174,7 +174,7 @@ contour_t<int> parse_svg_path_contour(string_view &path) {
   }
 
   contour_t<int> contour(new point_t<int>[points.size()], points.size());
-  for(auto i = 0; i < points.size(); i++) {
+  for(auto i = 0u; i < points.size(); i++) {
     contour.points[i] = points[i];
   }
   return contour;
@@ -208,7 +208,7 @@ int main() {
   // scale contours to same size as canvas
   int scale = bounds.w > bounds.h ? bounds.w : bounds.h;  
   for(auto &contour : contours) {
-    for(auto i = 0; i < contour.count; i++) {
+    for(auto i = 0u; i < contour.count; i++) {
       point_t<int> &point = contour.points[i];
       point -= point_t<int>(bounds.x, bounds.y);
       point *= WIDTH;
