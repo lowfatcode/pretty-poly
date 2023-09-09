@@ -206,10 +206,10 @@ namespace pretty_poly {
         if (y == bounds.y) ++bounds.y;
         continue;
       }
-      maxy = y;
 
       std::sort(&nodes[y][0], &nodes[y][0] + node_counts[y]);
 
+      bool rendered_any = false;
       for(auto i = 0u; i < node_counts[y]; i += 2) {
         int sx = nodes[y][i + 0];
         int ex = nodes[y][i + 1];
@@ -217,6 +217,8 @@ namespace pretty_poly {
         if(sx == ex) {
           continue;
         }
+
+        rendered_any = true;
 
         bounds.x = std::min(sx >> settings::antialias, bounds.x);
         maxx = std::max((ex - 1) >> settings::antialias, maxx);
@@ -227,10 +229,22 @@ namespace pretty_poly {
           tile.data[(x >> settings::antialias) + (y >> settings::antialias) * tile.stride]++;
         }       
       }
+
+      if (rendered_any) {
+        debug("  - rendered line %d\n", y);
+        maxy = y;
+      }
+      else if (y == bounds.y) {
+        debug(" - render nothing on line %d\n", y);
+        ++bounds.y;
+      }
     }
 
+    bounds.y >>= settings::antialias;
+    maxy >>= settings::antialias;
     bounds.w = (maxx >= bounds.x) ? maxx + 1 - bounds.x : 0;
     bounds.h = (maxy >= bounds.y) ? maxy + 1 - bounds.y : 0;
+    debug(" - rendered tile bounds %d, %d (%d x %d)\n", bounds.x, bounds.y, bounds.w, bounds.h);
   }
 
   template<typename T>
@@ -298,6 +312,8 @@ namespace pretty_poly {
         tile.data += bounds.x + tile.stride * bounds.y;
         bounds.x += tile.bounds.x;
         bounds.y += tile.bounds.y;
+        debug(" - adjusted render tile bounds %d, %d (%d x %d)\n", bounds.x, bounds.y, bounds.w, bounds.h);
+        debug(" - tile bounds %d, %d (%d x %d)\n", tile.bounds.x, tile.bounds.y, tile.bounds.w, tile.bounds.h);
         tile.bounds = bounds.intersection(tile.bounds);
         if (tile.bounds.empty()) {
           continue;
