@@ -6,7 +6,11 @@
 #include <charconv>
 #include <string_view>
 
+#include "timer.hpp"
+
 // #define PP_DEBUG
+
+#define PERFORMANCE_TEST
 
 #include "pretty-poly.hpp"
 
@@ -18,7 +22,7 @@ constexpr uint32_t HEIGHT = 256;
 uint32_t buf[WIDTH][HEIGHT];
 
 void callback(const tile_t &tile) {
-  debug_tile(tile);
+  //debug_tile(tile);
   
   for(auto y = 0; y < tile.bounds.h; y++) {
     for(auto x = 0; x < tile.bounds.w; x++) {     
@@ -95,7 +99,7 @@ string_view get_next_token(string_view &path) {
 }
 
 int token_to_int(string_view t) {
-  int r; from_chars(t.data(), t.data() + t.size(), r); return r;
+  int r = 0; from_chars(t.data(), t.data() + t.size(), r); return r;
 };
 
 // parses the next contour from this svg path and returns it
@@ -106,7 +110,7 @@ contour_t<int> parse_svg_path_contour(string_view &path) {
   vector<point_t<int>> points;
   command_t command = command_t::NONE;
 
-  printf("> start of contour\n");
+  debug("> start of contour\n");
 
   while(true) {
     string_view x_token = get_next_token(path);
@@ -118,7 +122,7 @@ contour_t<int> parse_svg_path_contour(string_view &path) {
 
     if(check_for_command(x_token) != command_t::NONE) {
       // new path command
-      printf("  - change command to %d\n", command);
+      debug("  - change command to %d\n", command);
       command = check_for_command(x_token);
       x_token = x_token.substr(1); // chop the processed command off
     }
@@ -146,13 +150,13 @@ contour_t<int> parse_svg_path_contour(string_view &path) {
 
     if(command == MOVE) {
       points.push_back(point);
-      printf("  + %d, %d\n", point.x, point.y);
+      debug("  + %d, %d\n", point.x, point.y);
     }
 
     if(command == MOVE_RELATIVE) {
       point += last;
       points.push_back(point);
-      printf("  + %d, %d\n", point.x, point.y);
+      debug("  + %d, %d\n", point.x, point.y);
     }
 
     if(command == CUBIC_BEZIER_RELATIVE) {
@@ -162,13 +166,13 @@ contour_t<int> parse_svg_path_contour(string_view &path) {
       points.push_back(point_on_cubic_bezier(0.50, last, c1, c2, point));
       points.push_back(point_on_cubic_bezier(0.75, last, c1, c2, point));
       points.push_back(point);
-      printf("  + %d, %d (bezier)\n", point.x, point.y);
+      debug("  + %d, %d (bezier)\n", point.x, point.y);
     }
 
     last = point;
 
     if(close_path) {
-      printf("  - end of contour\n");
+      debug("  - end of contour\n");
       break;
     }
   }
@@ -216,8 +220,22 @@ int main() {
     }
   }
 
+#ifdef PERFORMANCE_TEST
+  uint64_t min_time = 1000000000;
+  for (int j = 0; j < 15; ++j) {
+    uint64_t start_time = get_time_ns();
+
+    for (int i = 0; i < 60; ++i) {
+      draw_polygon(contours);
+    }
+
+    min_time = std::min(min_time, get_time_ns() - start_time);
+  }
+
+  printf("Draw time: %ldus\n", min_time / 1000);
+#else
   draw_polygon(contours);
-  draw_polygon(contours);
+#endif
 
   stbi_write_png("/tmp/out.png", WIDTH, HEIGHT, 4, (void *)buf, WIDTH * sizeof(uint32_t));
   
