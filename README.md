@@ -24,7 +24,7 @@ Features:
 - header only library - simply copy the header file into your project
 - minimal memory usage - ~4kB for tile render buffer and node lists
 - no floating point operations used
-- 1x (none), 4x and 16x super sampling
+- X1 (none), X4 and X16 super sampling
 - all results clipped to supplied clip rectangle (avoid extra bounds checks)
 - pixel format agnostic - renders a "mask" for you to blend into your framebuffer
 
@@ -135,7 +135,7 @@ There are two main approaches to implementing your callback function.
 
 Pretty Poly provides a simple way to get the value of a specific coordinate of the tile.
 
-The `tile` object provides a `get_value()` method which always returns a value between 0..255 - this is slower that reading the tile data directly (since we need a function call per pixel) but can be helpful to get up and running more quickly.
+The `tile` object provides a `get_value()` method which always returns a value between `0` and `255` - this is slower that reading the tile data directly (since we need a function call per pixel) but can be helpful to get up and running more quickly.
 
 ```c++
 void callback(const tile_t &tile) {
@@ -162,20 +162,20 @@ You can also potentially optimise in other ways:
 - scale `value` to better match your framebuffer format
 - scale `value` in other ways (not necessarily linear!) to apply effects
 
-Here we assume we're using X4 supersampling - this is not intended to show the fastest possibly implementation but rather one that's relatively straightforward to understand.
+Here we assume we're using X4 supersampling - this is not intended to show the fastest possible implementation but rather one that's relatively straightforward to understand.
 
 ```c++
 void callback(const tile_t &tile) {
-  // map sampling results to alpha values
-  static uint8_t alpha_map[4] {0, 64, 128, 192, 255};
+  // map to convert sampling results to alpha values used by our blend function
+  static uint8_t alpha_map[5] = {0, 64, 128, 192, 255};
 
-  // point to start of tile data
+  // pointer to start of tile data
   uint8_t *p = tile.data;
 
-  // iterate over valid portion of tile data
+  // iterate over the valid portion of tile data
   for(auto y = 0; y < tile.h; y++) {
     for(auto x = 0; x < tile.w; x++) {
-      // get value, map to alpoha, and advance data pointer
+      // get value, map to alpha, and advance data pointer
       uint8_t value = alpha_map[*p++];
 
       // blend pixel to your framebuffer
