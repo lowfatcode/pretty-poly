@@ -4,6 +4,11 @@
 
 #include "pretty-poly-types.hpp"
 
+#if defined(PICO_ON_DEVICE) && PICO_ON_DEVICE
+#define USE_RP2040_INTERP
+#include "hardware/interp.h"
+#endif
+
 #ifdef PP_DEBUG
 #define debug(...) printf(__VA_ARGS__)
 #else
@@ -154,6 +159,26 @@ namespace pretty_poly {
       x += xinc * xjump;
     }
 
+#ifdef USE_RP2040_INTERP
+    interp1->base[1] = full_tile_width;
+    interp1->accum[0] = x;
+
+    // loop over scanlines
+    while(count--) {
+      // consume accumulated error
+      while(e > dy) {e -= dy; interp1->add_raw[0] = xinc;}
+
+      // clamp node x value to tile bounds
+      const int nx = interp1->peek[0];
+      debug("      + adding node at %d, %d\n", x, y);
+      // add node to node list
+      nodes[y][node_counts[y]++] = nx;
+
+      // step to next scanline and accumulate error
+      y++;
+      e += einc;
+    }
+#else
     // loop over scanlines
     while(count--) {
       // consume accumulated error
@@ -169,6 +194,7 @@ namespace pretty_poly {
       y++;
       e += einc;
     }
+#endif
   }
 
   template<typename T>
@@ -301,6 +327,17 @@ namespace pretty_poly {
     debug("  - bounds %d, %d (%d x %d)\n", polygon_bounds.x, polygon_bounds.y, polygon_bounds.w, polygon_bounds.h);
     debug("  - clip %d, %d (%d x %d)\n", settings::clip.x, settings::clip.y, settings::clip.w, settings::clip.h);
 
+#ifdef USE_RP2040_INTERP
+    interp_hw_save_t interp1_save;
+    interp_save(interp1, &interp1_save);
+
+    interp_config cfg = interp_default_config();
+    interp_config_set_clamp(&cfg, true);
+    interp_config_set_signed(&cfg, true);
+    interp_set_config(interp1, 0, &cfg);
+    interp1->base[0] = 0;
+#endif
+
     // iterate over tiles
     debug("  - processing tiles\n");
     for(auto y = polygon_bounds.y; y < polygon_bounds.y + polygon_bounds.h; y += tile_bounds.h) {
@@ -345,5 +382,9 @@ namespace pretty_poly {
         settings::callback(tile);
       }
     }
+
+#ifdef USE_RP2040_INTERP
+    interp_restore(interp1, &interp1_save);
+#endif
   }
 }

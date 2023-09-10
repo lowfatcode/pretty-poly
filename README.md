@@ -54,7 +54,7 @@ int main() {
   // you must call set_options first to specify 
   // your callback function, what level of super-sampling 
   // to use, and your clip rectangle
-  set_options(callback, X2, {0, 0, WIDTH, HEIGHT});
+  set_options(callback, X4, {0, 0, WIDTH, HEIGHT});
 
   // outline contour of letter "a" in Roboto Black
   contour_t<int> a_outer({
@@ -204,6 +204,8 @@ void callback(const tile_t &tile) {
   // perform your framebuffer blending here
 }
 ```
+
+Note that on RP2040 interp1 is used by pretty poly.  If your callback uses interp1 it must save and restore the state.
 
 ### `tile_t`
 
