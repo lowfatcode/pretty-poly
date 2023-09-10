@@ -4,8 +4,6 @@
 
 #include "pretty-poly-types.hpp"
 
-using namespace std;
-
 #ifdef PP_DEBUG
 #define debug(...) printf(__VA_ARGS__)
 #else
@@ -42,17 +40,17 @@ namespace pretty_poly {
     unsigned count;
 
     contour_t() {}
-    contour_t(vector<point_t<T>> v) : points(v.data()), count(v.size()) {};
+    contour_t(std::vector<point_t<T>> v) : points(v.data()), count(v.size()) {};
     contour_t(point_t<T> *points, unsigned count) : points(points), count(count) {};
 
     rect_t bounds() {
       T minx = this->points[0].x, maxx = minx;
       T miny = this->points[0].y, maxy = miny;
       for(auto i = 1u; i < this->count; i++) {
-        minx = min(minx, this->points[i].x);
-        miny = min(miny, this->points[i].y);
-        maxx = max(maxx, this->points[i].x); 
-        maxy = max(maxy, this->points[i].y);
+        minx = std::min(minx, this->points[i].x);
+        miny = std::min(miny, this->points[i].y);
+        maxx = std::max(maxx, this->points[i].x); 
+        maxy = std::max(maxy, this->points[i].y);
       }
       return rect_t(minx, miny, maxx - minx, maxy - miny);
     }
@@ -108,8 +106,8 @@ namespace pretty_poly {
     int sx = start.x, sy = start.y, ex = end.x, ey = end.y;
 
     if(ey < sy) {
-      swap(sy, ey);
-      swap(sx, ex);
+      std::swap(sy, ey);
+      std::swap(sx, ex);
     }
 
     // Early out if line is completely outside the tile, or has no lines
