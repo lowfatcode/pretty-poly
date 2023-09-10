@@ -112,8 +112,8 @@ namespace pretty_poly {
       swap(sx, ex);
     }
 
-    // Early out if line is completely outside the tile
-    if (ey < 0 || sy >= (int)node_buffer_size) return;
+    // Early out if line is completely outside the tile, or has no lines
+    if (ey < 0 || sy >= (int)node_buffer_size || sy == ey) return;
 
     debug("      + line segment from %d, %d to %d, %d\n", sx, sy, ex, ey);
 
