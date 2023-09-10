@@ -23,7 +23,6 @@ Features:
 - render complex polygons (concave, self-intersecting, multiple contours, holey, etc.)
 - header only library - simply copy the header file into your project
 - minimal memory usage - ~4kB for tile render buffer and node lists
-- no divide operation used during render (ideal for Cortex M0/1 cores)
 - no floating point operations used
 - 1x (none), 4x and 16x super sampling
 - all results clipped to supplied clip rectangle (avoid extra bounds checks)
