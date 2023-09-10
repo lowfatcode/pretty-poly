@@ -48,7 +48,7 @@ namespace pretty_poly {
     contour_t(std::vector<point_t<T>> v) : points(v.data()), count(v.size()) {};
     contour_t(point_t<T> *points, unsigned count) : points(points), count(count) {};
 
-    rect_t bounds() {
+    rect_t bounds() const {
       T minx = this->points[0].x, maxx = minx;
       T miny = this->points[0].y, maxy = miny;
       for(auto i = 1u; i < this->count; i++) {
@@ -305,7 +305,7 @@ namespace pretty_poly {
   }
   
   template<typename T>
-  void draw_polygon(std::vector<contour_t<T>> contours, point_t<int> origin = point_t<int>(0, 0), int scale = 65536) {    
+  void draw_polygon(const std::vector<contour_t<T>>& contours, point_t<int> origin = point_t<int>(0, 0), int scale = 65536) {
 
     debug("> draw polygon with %lu contours\n", contours.size());
 
@@ -359,7 +359,7 @@ namespace pretty_poly {
         memset(tile.data, 0, tile_buffer_size);
 
         // build the nodes for each contour
-        for(contour_t<T> &contour : contours) {
+        for(const contour_t<T> &contour : contours) {
           debug("    : build nodes for contour\n");
           build_nodes(contour, tile, origin, scale);
         }
