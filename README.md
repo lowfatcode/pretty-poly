@@ -1,6 +1,6 @@
 <img src="logo.svg" alt="Kiwi standing on oval" width="300px">
 
-# Pretty Poly - super-sampling polygon renderer for low resource platforms.
+# Pretty Poly - A super-sampling complex polygon renderer for low resource platforms.
 
 ## Why?
 
