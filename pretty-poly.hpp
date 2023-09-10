@@ -16,6 +16,14 @@ namespace pretty_poly {
 
   enum antialias_t {NONE = 0, X4 = 1, X16 = 2};
 
+  // user settings
+  typedef void (*tile_callback_t)(const struct tile_t &tile);
+  namespace settings {
+    rect_t clip(0, 0, 320, 240);
+    tile_callback_t callback;
+    antialias_t antialias = antialias_t::NONE;
+  }  
+
   struct tile_t {
     rect_t bounds;
     unsigned stride;
@@ -24,7 +32,7 @@ namespace pretty_poly {
     tile_t() {};
 
     int get_value(int x, int y) const {
-      return this->data[x + y * this->stride];
+      return this->data[x + y * this->stride] * (255 >> settings::antialias >> settings::antialias);
     }
   };
 
@@ -50,8 +58,6 @@ namespace pretty_poly {
     }
   };
 
-  typedef void (*tile_callback_t)(const tile_t &tile);
-
   // buffer that each tile is rendered into before callback
   // allocate one extra byte to allow a small optimization in the row renderer
   constexpr unsigned tile_buffer_size = 1024;
@@ -65,13 +71,6 @@ namespace pretty_poly {
 
   // default tile bounds to X1 antialiasing
   rect_t tile_bounds(0, 0, tile_buffer_size / node_buffer_size, node_buffer_size);
-
-  // user settings
-  namespace settings {
-    rect_t clip(0, 0, 320, 240);
-    tile_callback_t callback;
-    antialias_t antialias = antialias_t::NONE;
-  }  
 
   void set_options(tile_callback_t callback, antialias_t antialias, rect_t clip) {
     settings::callback = callback;
@@ -95,7 +94,7 @@ namespace pretty_poly {
     for(auto y = 0; y < tile.bounds.h; y++) {
       debug("[%3d]: ", y);
       for(auto x = 0; x < tile.bounds.w; x++) {
-        debug("%d", tile.get_value(x, y));
+        debug("%02x", tile.get_value(x, y));
       }  
       debug("\n");              
     }

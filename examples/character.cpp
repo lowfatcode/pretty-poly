@@ -26,7 +26,7 @@ void callback(const tile_t &tile) {
   debug_tile(tile);
   for(auto y = 0; y < tile.bounds.h; y++) {
     for(auto x = 0; x < tile.bounds.w; x++) {      
-      buf[y + tile.bounds.y][x + tile.bounds.x] = tile.get_value(x, y) * (255 >> settings::antialias >> settings::antialias);
+      buf[y + tile.bounds.y][x + tile.bounds.x] = tile.get_value(x, y);
     }
   }
 }

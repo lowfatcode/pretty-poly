@@ -26,7 +26,7 @@ void callback(const tile_t &tile) {
   
   for(auto y = 0; y < tile.bounds.h; y++) {
     for(auto x = 0; x < tile.bounds.w; x++) {     
-      uint8_t alpha = tile.get_value(x, y) * (255 >> settings::antialias >> settings::antialias); 
+      uint8_t alpha = tile.get_value(x, y); 
       uint8_t r = 234;
       uint8_t g = 78;
       uint8_t b = 63;

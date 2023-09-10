@@ -76,7 +76,7 @@ namespace pretty_poly {
     int x, y, w, h;    
     rect_t() : x(0), y(0), w(0), h(0) {}
     rect_t(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) {}
-    bool empty() const {return this->w == 0 && this->h == 0;}
+    bool empty() const {return this->w == 0 || this->h == 0;}
     rect_t intersection(const rect_t &c) {
       return rect_t(max(this->x, c.x), max(this->y, c.y),
         max(0, min(this->x + this->w, c.x + c.w) - max(this->x, c.x)),
