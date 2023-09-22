@@ -1,2 +1,2 @@
-include(character.cmake)
+#include(character.cmake)
 include(logo.cmake)

@@ -6,9 +6,11 @@
 
 Microcontrollers generally can't drive very high resolution displays (beyond 320x240 or so) because they lack the high speed peripherals and rarely have enough memory to store such a large framebuffer. Super-samplaing (AKA anti-aliasing) is a tool that can provide a huge quality boost at these lower display pitches.
 
+> Fun fact: The Pretty Poly logo above is rendered by Pretty Poly! It is a single polygon with eleven contours: the outline and ten holes making up the lettering.
+
 Microcontrollers are now powerful enough to perform the extra processing needed for super-sampling in realtime allowing high quality vector graphics, including text, on relatively low dot pitch displays like LED matrices and small LCD screens.
 
-> Pretty Poly was initially created for [Pretty Alright Fonts](https://github.com/lowfatcode/pretty-alright-fonts) but it has many other uses so is broken out as a sibling project that can be used in isolation.
+> Pretty Poly was originally created for [Alright Fonts](https://github.com/lowfatcode/alright-fonts) but it has many other potential uses so is broken out and can be used in isolation.
 
 Pretty Poly provides an antialiased, pixel format agnostic, complex polygon drawing engine designed specifically for use on resource-constrained microcontrollers.
 

@@ -30,7 +30,7 @@
     {
       "type": "shell",
       "label": "Open image",
-      "command": "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+      "command": "open",
       "args": [
         "/tmp/out.png"
       ]
