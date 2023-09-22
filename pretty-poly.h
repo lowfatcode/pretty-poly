@@ -69,7 +69,7 @@ static pp_point_t pp_point_add(pp_point_t p1, pp_point_t p2);
 static pp_point_t pp_point_sub(pp_point_t p1, pp_point_t p2);
 static pp_point_t pp_point_mul(pp_point_t p1, pp_point_t p2);
 static pp_point_t pp_point_div(pp_point_t p1, pp_point_t p2);
-static pp_point_t pp_point_transform(pp_point_t p, pp_mat3_t m);
+static pp_point_t pp_point_transform(pp_point_t p, pp_mat3_t *m);
 
 // rect type
 typedef struct {
@@ -78,6 +78,7 @@ typedef struct {
 bool pp_rect_empty(pp_rect_t r);
 static pp_rect_t pp_rect_intersection(pp_rect_t r1, pp_rect_t r2);
 static pp_rect_t pp_rect_merge(pp_rect_t r1, pp_rect_t r2);
+static pp_rect_t pp_rect_transform(pp_rect_t r, pp_mat3_t *m);
 
 // antialias levels
 typedef enum {PP_AA_NONE = 0, PP_AA_X4 = 1, PP_AA_X16 = 2} pp_antialias_t;
@@ -101,11 +102,16 @@ typedef struct {
 // user settings
 typedef void (*pp_tile_callback_t)(const pp_tile_t tile);
 
-struct {
-  pp_rect_t clip;
-  pp_tile_callback_t callback;
-  pp_antialias_t antialias;
-} pp_settings;
+pp_rect_t           _pp_clip;
+pp_tile_callback_t  _pp_tile_callback;
+pp_antialias_t      _pp_antialias;
+pp_mat3_t          *_pp_transform;
+
+
+static void pp_clip(pp_rect_t clip);
+static void pp_tile_callback(pp_tile_callback_t callback);
+static void pp_antialias(pp_antialias_t antialias);
+static void pp_transform(pp_mat3_t *transform);
 
 #ifdef __cplusplus
 }
@@ -116,7 +122,8 @@ int _pp_max(int32_t a, int32_t b) { return a > b ? a : b; }
 int _pp_min(int32_t a, int32_t b) { return a < b ? a : b; }
 
 // pp_mat3_t implementation
-static pp_mat3_t pp_mat3_identity() {pp_mat3_t m; m.v00 = m.v11 = m.v22 = 1.0f; return m;}
+static pp_mat3_t pp_mat3_identity() {
+  pp_mat3_t m; memset(&m, 0, sizeof(pp_mat3_t)); m.v00 = m.v11 = m.v22 = 1.0f; return m;}
 static pp_mat3_t pp_mat3_rotation(float a) {
   float c = cosf(a), s = sinf(a); pp_mat3_t r = pp_mat3_identity();
   r.v00 = c; r.v01 = s; r.v10 = -s; r.v11 = c; return r;}
@@ -151,10 +158,10 @@ static pp_point_t pp_point_mul(pp_point_t p1, pp_point_t p2) {
 static pp_point_t pp_point_div(pp_point_t p1, pp_point_t p2) {
   return (pp_point_t){.x = p1.x / p2.x, .y = p1.y / p2.y};
 }
-static pp_point_t pp_point_transform(pp_point_t p, pp_mat3_t m) {
+static pp_point_t pp_point_transform(pp_point_t p, pp_mat3_t *m) {
   return (pp_point_t){
-    .x = (m.v00 * p.x + m.v01 * p.y + m.v02),
-    .y = (m.v10 * p.x + m.v11 * p.y + m.v12)
+    .x = (m->v00 * p.x + m->v01 * p.y + m->v02),
+    .y = (m->v10 * p.x + m->v11 * p.y + m->v12)
   };
 }
 
@@ -177,17 +184,35 @@ pp_rect_t pp_rect_merge(pp_rect_t r1, pp_rect_t r2) {
     .h = _pp_max(r1.y + r1.h, r2.y + r2.h) - _pp_min(r1.y, r2.y)
   };
 }
+pp_rect_t pp_rect_transform(pp_rect_t r, pp_mat3_t *m) {
+  pp_point_t tl = (pp_point_t){.x = (PP_COORD_TYPE)r.x, .y = (PP_COORD_TYPE)r.y};
+  pp_point_t tr = (pp_point_t){.x = (PP_COORD_TYPE)r.x + (PP_COORD_TYPE)r.w, .y = (PP_COORD_TYPE)r.y};
+  pp_point_t bl = (pp_point_t){.x = (PP_COORD_TYPE)r.x, .y = (PP_COORD_TYPE)r.y + (PP_COORD_TYPE)r.h};
+  pp_point_t br = (pp_point_t){.x = (PP_COORD_TYPE)r.x + (PP_COORD_TYPE)r.w, .y = (PP_COORD_TYPE)r.y + (PP_COORD_TYPE)r.h};
+
+  tl = pp_point_transform(tl, m);
+  tr = pp_point_transform(tr, m);
+  bl = pp_point_transform(bl, m);
+  br = pp_point_transform(br, m);
+
+  PP_COORD_TYPE minx = _pp_min(tl.x, _pp_min(tr.x, _pp_min(bl.x, br.x)));
+  PP_COORD_TYPE miny = _pp_min(tl.y, _pp_min(tr.y, _pp_min(bl.y, br.y)));
+  PP_COORD_TYPE maxx = _pp_max(tl.x, _pp_max(tr.x, _pp_max(bl.x, br.x)));
+  PP_COORD_TYPE maxy = _pp_max(tl.y, _pp_max(tr.y, _pp_max(bl.y, br.y)));
+
+  return (pp_rect_t){.x = (int32_t)minx, .y = (int32_t)miny, .w = (int32_t)(maxx - minx), .h = (int32_t)(maxy - miny)};
+}
 
 // pp_tile_t implementation
 int pp_tile_get_value(const pp_tile_t *tile, const int x, const int y) {
-  return tile->data[x + y * tile->stride] * (255 >> pp_settings.antialias >> pp_settings.antialias);
+  return tile->data[x + y * tile->stride] * (255 >> _pp_antialias >> _pp_antialias);
 }
 
 // pp_contour_t implementation
 pp_rect_t pp_contour_bounds(const pp_contour_t c) {
   int minx = c.points[0].x, maxx = minx;
   int miny = c.points[0].y, maxy = miny;
-  for(auto i = 1u; i < c.point_count; i++) {
+  for(uint32_t i = 1; i < c.point_count; i++) {
     minx = _pp_min(minx, c.points[i].x);
     miny = _pp_min(miny, c.points[i].y);
     maxx = _pp_max(maxx, c.points[i].x); 
@@ -199,7 +224,7 @@ pp_rect_t pp_contour_bounds(const pp_contour_t c) {
 pp_rect_t pp_polygon_bounds(pp_polygon_t p) {
   if(p.contour_count == 0) {return (pp_rect_t){};}
   pp_rect_t b = pp_contour_bounds(p.contours[0]);
-  for(auto i = 1; i < p.contour_count; i++) {
+  for(uint32_t i = 1; i < p.contour_count; i++) {
     b = pp_rect_merge(b, pp_contour_bounds(p.contours[i]));
   }
   return b;
@@ -219,15 +244,25 @@ uint32_t node_counts[node_buffer_size];
 // default tile bounds to X1 antialiasing
 pp_rect_t tile_bounds;
 
-void set_options(pp_tile_callback_t callback, pp_antialias_t antialias, pp_rect_t clip) {
-  pp_settings.callback = callback;
-  pp_settings.antialias = antialias;
-  pp_settings.clip = clip;
+void pp_clip(pp_rect_t clip) {
+  _pp_clip = clip;
+}
 
+void pp_tile_callback(pp_tile_callback_t callback) {
+  _pp_tile_callback = callback;
+}
+
+void pp_antialias(pp_antialias_t antialias) {
+  _pp_antialias = antialias;
   // recalculate the tile size for rendering based on antialiasing level
-  int tile_height = node_buffer_size >> antialias;
+  int tile_height = node_buffer_size >> _pp_antialias;
   tile_bounds = (pp_rect_t){.x = 0, .y = 0, .w = (int)(tile_buffer_size / tile_height), .h = tile_height};
 }
+
+void pp_transform(pp_mat3_t *transform) {
+  _pp_transform = transform;
+}
+
 
 // dy step (returns 1, 0, or -1 if the supplied value is > 0, == 0, < 0)
 int32_t sign(int32_t v) {
@@ -238,9 +273,9 @@ int32_t sign(int32_t v) {
 // write out the tile bits
 void debug_tile(const pp_tile_t *tile) {
   debug("  - tile %d, %d (%d x %d)\n", tile->bounds.x, tile->bounds.y, tile->bounds.w, tile->bounds.h);
-  for(auto y = 0; y < tile->bounds.h; y++) {
+  for(int32_t y = 0; y < tile->bounds.h; y++) {
     debug("[%3d]: ", y);
-    for(auto x = 0; x < tile->bounds.w; x++) {
+    for(int32_t x = 0; x < tile->bounds.w; x++) {
       debug("%02x", pp_tile_get_value(tile, x, y));
     }  
     debug("\n");              
@@ -277,7 +312,7 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
     return;
   }
 
-  const int full_tile_width = (tile_bounds.w << pp_settings.antialias);
+  const int full_tile_width = (tile_bounds.w << _pp_antialias);
   if (_pp_min(sx, ex) >= full_tile_width) {
     while (count--) {
       nodes[y][node_counts[y]++] = full_tile_width;
@@ -341,21 +376,37 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
 #endif
 }
 
-void build_nodes(const pp_contour_t contour, const pp_tile_t tile, pp_point_t origin, int scale) {
-  PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << pp_settings.antialias);
-  origin.x = (origin.x - tile.bounds.x) * aa_scale;
-  origin.y = (origin.y - tile.bounds.y) * aa_scale;
-  // start with the last point to close the loop
-  pp_point_t last = {
-    .x = (((contour.points[contour.point_count - 1].x * scale) * aa_scale) / 65536) + origin.x,
-    .y = (((contour.points[contour.point_count - 1].y * scale) * aa_scale) / 65536) + origin.y
+void build_nodes(const pp_contour_t contour, const pp_tile_t tile) {
+  PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
+
+  pp_point_t tile_origin = (pp_point_t) {
+    .x = tile.bounds.x * aa_scale,
+    .y = tile.bounds.y * aa_scale
   };
 
-  for(auto i = 0u; i < contour.point_count; i++) {
+  // start with the last point to close the loop
+  pp_point_t last = {
+    .x = (contour.points[contour.point_count - 1].x) * aa_scale,
+    .y = (contour.points[contour.point_count - 1].y) * aa_scale
+  };
+
+  if(_pp_transform) {
+    last = pp_point_transform(last, _pp_transform);
+  }
+
+  last = pp_point_sub(last, tile_origin);
+
+  for(uint32_t i = 0; i < contour.point_count; i++) {
     pp_point_t point = {
-      .x = (((contour.points[i].x * scale) * aa_scale) / 65536) + origin.x,
-      .y = (((contour.points[i].y * scale) * aa_scale) / 65536) + origin.y
+      .x = (contour.points[i].x) * aa_scale,
+      .y = (contour.points[i].y) * aa_scale
     };
+
+    if(_pp_transform) {
+      point = pp_point_transform(point, _pp_transform);
+    }
+
+    point = pp_point_sub(point, tile_origin);
 
     add_line_segment_to_nodes(last, point);
     
@@ -372,10 +423,10 @@ void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
   bounds->y = 0;
   bounds->x = tile.bounds.w;
   int maxx = 0;
-  PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << pp_settings.antialias);
-  int anitialias_mask = (1 << pp_settings.antialias) - 1;
+  PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
+  int anitialias_mask = (1 << _pp_antialias) - 1;
 
-  for(auto y = 0; y < (int)node_buffer_size; y++) {
+  for(uint32_t y = 0; y < node_buffer_size; y++) {
     if(node_counts[y] == 0) {
       if (y == bounds->y) ++bounds->y;
       continue;
@@ -383,9 +434,9 @@ void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
 
     qsort(&nodes[y][0], node_counts[y], sizeof(int), compare_nodes);
 
-    unsigned char* row_data = &tile.data[(y >> pp_settings.antialias) * tile.stride];
+    unsigned char* row_data = &tile.data[(y >> _pp_antialias) * tile.stride];
     bool rendered_any = false;
-    for(auto i = 0u; i < node_counts[y]; i += 2) {
+    for(uint32_t i = 0; i < node_counts[y]; i += 2) {
       int sx = nodes[y][i + 0];
       int ex = nodes[y][i + 1];
 
@@ -395,11 +446,11 @@ void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
 
       rendered_any = true;
 
-      maxx = _pp_max((ex - 1) >> pp_settings.antialias, maxx);
+      maxx = _pp_max((ex - 1) >> _pp_antialias, maxx);
 
       debug(" - render span at %d from %d to %d\n", y, sx, ex);
 
-      if (pp_settings.antialias) {
+      if (_pp_antialias) {
         int ax = sx / aa_scale;
         const int aex = ex / aa_scale;
 
@@ -436,14 +487,14 @@ void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
     }
   }
 
-  bounds->y >>= pp_settings.antialias;
-  maxy >>= pp_settings.antialias;
+  bounds->y >>= _pp_antialias;
+  maxy >>= _pp_antialias;
   bounds->w = (maxx >= bounds->x) ? maxx + 1 - bounds->x : 0;
   bounds->h = (maxy >= bounds->y) ? maxy + 1 - bounds->y : 0;
   debug(" - rendered tile bounds %d, %d (%d x %d)\n", bounds->x, bounds->y, bounds->w, bounds->h);
 }
 
-void draw_polygon(const pp_polygon_t polygon, pp_point_t origin, int scale) {
+void draw_polygon(const pp_polygon_t polygon) {
 
   debug("> draw polygon with %u contours\n", polygon.contour_count);
 
@@ -454,8 +505,12 @@ void draw_polygon(const pp_polygon_t polygon, pp_point_t origin, int scale) {
   // determine extreme bounds
   pp_rect_t polygon_bounds = pp_polygon_bounds(polygon);
 
+  if(_pp_transform) {
+    polygon_bounds = pp_rect_transform(polygon_bounds, _pp_transform);
+  }
+
   debug("  - bounds %d, %d (%d x %d)\n", polygon_bounds.x, polygon_bounds.y, polygon_bounds.w, polygon_bounds.h);
-  debug("  - clip %d, %d (%d x %d)\n", pp_settings.clip.x, pp_settings.clip.y, pp_settings.clip.w, pp_settings.clip.h);
+  debug("  - clip %d, %d (%d x %d)\n", _pp_clip.x, _pp_clip.y, _pp_clip.w, _pp_clip.h);
 
 #ifdef USE_RP2040_INTERP
   interp_hw_save_t interp1_save;
@@ -470,10 +525,10 @@ void draw_polygon(const pp_polygon_t polygon, pp_point_t origin, int scale) {
 
   // iterate over tiles
   debug("  - processing tiles\n");
-  for(auto y = polygon_bounds.y; y < polygon_bounds.y + polygon_bounds.h; y += tile_bounds.h) {
-    for(auto x = polygon_bounds.x; x < polygon_bounds.x + polygon_bounds.w; x += tile_bounds.w) {
+  for(int32_t y = polygon_bounds.y; y < polygon_bounds.y + polygon_bounds.h; y += tile_bounds.h) {
+    for(int32_t x = polygon_bounds.x; x < polygon_bounds.x + polygon_bounds.w; x += tile_bounds.w) {
       pp_tile_t tile = {
-        .bounds = pp_rect_intersection((pp_rect_t){.x = x, .y = y, .w = tile_bounds.w, .h = tile_bounds.h}, pp_settings.clip),
+        .bounds = pp_rect_intersection((pp_rect_t){.x = x, .y = y, .w = tile_bounds.w, .h = tile_bounds.h}, _pp_clip),
         .stride = (uint32_t)tile_bounds.w,
         .data = tile_buffer
       };
@@ -490,10 +545,10 @@ void draw_polygon(const pp_polygon_t polygon, pp_point_t origin, int scale) {
       memset(tile.data, 0, tile_buffer_size);
 
       // build the nodes for each contour
-      for(auto i = 0; i < polygon.contour_count; i++) {
+      for(uint32_t i = 0; i < polygon.contour_count; i++) {
         pp_contour_t contour = polygon.contours[i];
         debug("    : build nodes for contour\n");
-        build_nodes(contour, tile, origin, scale);
+        build_nodes(contour, tile);
       }
 
       debug("    : render the tile\n");
@@ -511,7 +566,7 @@ void draw_polygon(const pp_polygon_t polygon, pp_point_t origin, int scale) {
         continue;
       }
 
-      pp_settings.callback(tile);
+      _pp_tile_callback(tile);
     }
   }
 

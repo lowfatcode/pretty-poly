@@ -1,4 +1,4 @@
 add_executable(
   logo
-  logo.cpp
+  logo.c
 )
