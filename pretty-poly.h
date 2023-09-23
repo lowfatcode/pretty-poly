@@ -57,6 +57,7 @@ typedef struct {
 } pp_mat3_t;
 static pp_mat3_t pp_mat3_identity();
 static pp_mat3_t pp_mat3_rotation(float a);
+static pp_mat3_t pp_mat3_rotation_rad(float a);
 static pp_mat3_t pp_mat3_translation(float x, float y);
 static pp_mat3_t pp_mat3_scale(float x, float y);
 static pp_mat3_t pp_mat3_mul(pp_mat3_t m1, pp_mat3_t m2);
@@ -118,13 +119,17 @@ static void pp_transform(pp_mat3_t *transform);
 #endif
 
 // helpers
-int _pp_max(int32_t a, int32_t b) { return a > b ? a : b; }
-int _pp_min(int32_t a, int32_t b) { return a < b ? a : b; }
+int     _pp_max(int32_t a, int32_t b) { return a > b ? a : b; }
+int     _pp_min(int32_t a, int32_t b) { return a < b ? a : b; }
+int32_t _pp_sign(int32_t v) {return ((uint32_t)-v >> 31) - ((uint32_t)v >> 31);}
+void    _pp_swap(int32_t *a, int32_t *b) {int32_t t = *a; *a = *b; *b = t;}
 
 // pp_mat3_t implementation
 static pp_mat3_t pp_mat3_identity() {
   pp_mat3_t m; memset(&m, 0, sizeof(pp_mat3_t)); m.v00 = m.v11 = m.v22 = 1.0f; return m;}
 static pp_mat3_t pp_mat3_rotation(float a) {
+  return pp_mat3_rotation_rad(a * M_PI / 180.0f);}
+static pp_mat3_t pp_mat3_rotation_rad(float a) {
   float c = cosf(a), s = sinf(a); pp_mat3_t r = pp_mat3_identity();
   r.v00 = c; r.v01 = s; r.v10 = -s; r.v11 = c; return r;}
 static pp_mat3_t pp_mat3_translation(float x, float y) {
@@ -264,11 +269,7 @@ void pp_transform(pp_mat3_t *transform) {
 }
 
 
-// dy step (returns 1, 0, or -1 if the supplied value is > 0, == 0, < 0)
-int32_t sign(int32_t v) {
-  // assumes 32-bit int/unsigned
-  return ((uint32_t)-v >> 31) - ((uint32_t)v >> 31);
-}
+
 
 // write out the tile bits
 void debug_tile(const pp_tile_t *tile) {
@@ -325,7 +326,7 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
   int x = sx;
   int e = 0;
 
-  const int xinc = sign(ex - sx);
+  const int xinc = _pp_sign(ex - sx);
   const int einc = abs(ex - sx) + 1;
   const int dy = ey - sy;
 
@@ -386,25 +387,31 @@ void build_nodes(const pp_contour_t contour, const pp_tile_t tile) {
 
   // start with the last point to close the loop
   pp_point_t last = {
-    .x = (contour.points[contour.point_count - 1].x) * aa_scale,
-    .y = (contour.points[contour.point_count - 1].y) * aa_scale
+    .x = (contour.points[contour.point_count - 1].x),
+    .y = (contour.points[contour.point_count - 1].y)
   };
 
   if(_pp_transform) {
     last = pp_point_transform(last, _pp_transform);
   }
 
+  last.x *= aa_scale;
+  last.y *= aa_scale;
+
   last = pp_point_sub(last, tile_origin);
 
   for(uint32_t i = 0; i < contour.point_count; i++) {
     pp_point_t point = {
-      .x = (contour.points[i].x) * aa_scale,
-      .y = (contour.points[i].y) * aa_scale
+      .x = (contour.points[i].x),
+      .y = (contour.points[i].y)
     };
 
     if(_pp_transform) {
       point = pp_point_transform(point, _pp_transform);
     }
+
+    point.x *= aa_scale;
+    point.y *= aa_scale;
 
     point = pp_point_sub(point, tile_origin);
 
