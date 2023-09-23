@@ -1,3 +1,3 @@
 add_executable(
-  character
-  character.c)
+  geometry
+  geometry.c)

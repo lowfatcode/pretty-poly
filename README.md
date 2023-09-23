@@ -1,6 +1,6 @@
-<img src="logo.svg" alt="Kiwi standing on oval" width="300px">
+<img src="logo.png" alt="Kiwi standing on oval" width="300px">
 
-# Pretty Poly - A super-sampling complex polygon renderer for low resource platforms.
+# Pretty Poly - A super-sampling complex polygon renderer for low resource platforms. 🦜
 
 ## Why?
 
@@ -22,13 +22,15 @@ This allows Pretty Poly to use very little memory (around 4kB total, statically 
 
 Features:
 
-- render complex polygons (concave, self-intersecting, multiple contours, holey, etc.)
-- header only library - simply copy the header file into your project
-- minimal memory usage - ~4kB for tile render buffer and node lists
-- no floating point operations used
-- X1 (none), X4 and X16 super sampling
-- all results clipped to supplied clip rectangle (avoid extra bounds checks)
-- pixel format agnostic - renders a "mask" for you to blend into your framebuffer
+- Renders polygons: concave, self-intersecting, multi contour, holes, etc.
+- C17 header only library: simply copy the header file into your project
+- Tile based renderer: low memory footprint, cache coherency
+- Low memory usage: ~4kB of heap memory required
+- High speed on low resource platforms: optionally no floating point
+- Antialiasing modes: X1 (none), X4 and X16 super sampling
+- Bounds clipping: all results clipped to supplied clip rectangle
+- Pixel format agnostic: renders a "tile" to blend into your framebuffer
+- Support for hardware interpolators on rp2040 (thanks @MichaelBell!)
 
 ## Using Pretty Poly
 
