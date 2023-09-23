@@ -309,7 +309,7 @@ int main() {
       set_pen(create_colour(20, 30, 40, 160));
       draw_polygon(polygon);
       
-      set_pen(create_colour(234, 78, 63, 255));
+      set_pen(create_colour(234, 178, 163, 255));
     }else{
       set_pen(create_colour(150, 100, 80, (i - 160)));
     }    
