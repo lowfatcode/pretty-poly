@@ -1,4 +1,5 @@
 // Pretty Poly 🦜 - super-sampling polygon renderer for low resource platforms.
+//
 // Jonathan Williamson, August 2022
 // Examples, source, and more: https://github.com/lowfatcode/pretty-poly
 // MIT License https://github.com/lowfatcode/pretty-poly/blob/main/LICENSE
@@ -33,7 +34,7 @@
 #endif
 
 #ifndef PP_NODE_BUFFER_HEIGHT
-#define PP_NODE_BUFFER_HEIGHT 64
+#define PP_NODE_BUFFER_HEIGHT 16
 #endif
 
 #ifndef PP_MAX_NODES_PER_SCANLINE
@@ -76,7 +77,7 @@ static void pp_mat3_scale(pp_mat3_t *m, float x, float y);
 static void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2);
 
 // point type used to hold polygon vertex coordinates
-typedef struct {
+typedef struct __attribute__((__packed__)) {
   PP_COORD_TYPE x, y;
 } pp_point_t;
 static pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2);
@@ -221,7 +222,7 @@ pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m) {
 }
 
 // pp_tile_t implementation
-uint8_t pp_tile_get_value(const pp_tile_t *tile, const int32_t x, const int32_t y) {
+uint8_t pp_tile_get(const pp_tile_t *tile, const int32_t x, const int32_t y) {
   return tile->data[(x - tile->x) + (y - tile->y) * tile->stride] * (255 >> _pp_antialias >> _pp_antialias);
 }
 
@@ -516,7 +517,7 @@ pp_rect_t render_nodes(uint8_t *buffer, pp_rect_t *tb) {
   return rb;
 }
 
-void draw_polygon(pp_polygon_t *polygon) {
+void pp_render(pp_polygon_t *polygon) {
 
   debug("> draw polygon with %u contours\n", polygon->contour_count);
 

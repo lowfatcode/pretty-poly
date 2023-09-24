@@ -16,7 +16,7 @@ void set_pen(colour c) {
   pen = c;
 }
 
-void tile_render_callback(const pp_tile_t *t) {
+void blend_tile(const pp_tile_t *t) {
   for(int32_t y = t->y; y < t->y + t->h; y++) {
     for(int32_t x = t->x; x < t->x + t->w; x++) {     
       colour alpha_pen = pen;
@@ -274,7 +274,7 @@ pp_polygon_t parse_svg_path(char *path) {
 int main() {
 
   // setup pretty poly
-  pp_tile_callback(tile_render_callback);
+  pp_tile_callback(blend_tile);
   pp_antialias(PP_AA_X16);
   pp_clip(0, 0, WIDTH, HEIGHT);
 

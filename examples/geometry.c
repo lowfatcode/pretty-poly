@@ -13,12 +13,12 @@ void set_pen(colour c) {
   pen = c;
 }
 
-void tile_render_callback(const pp_tile_t *tile) {
-  for(int32_t y = 0; y < tile->h; y++) {
-    for(int32_t x = 0; x < tile->w; x++) {     
+void blend_tile(const pp_tile_t *t) {
+  for(int32_t y = t->y; y < t->y + t->h; y++) {
+    for(int32_t x = t->x; x < t->x + t->w; x++) {     
       colour alpha_pen = pen;
-      alpha_pen.rgba.a = alpha(pen.rgba.a, pp_tile_get_value(tile, x, y));
-      buffer[y + tile->y][x + tile->x] = blend(buffer[y + tile->y][x + tile->x], alpha_pen);
+      alpha_pen.rgba.a = alpha(pen.rgba.a, pp_tile_get(t, x, y));
+      buffer[y][x] = blend(buffer[y][x], alpha_pen);
     }
   }
 }
@@ -26,7 +26,7 @@ void tile_render_callback(const pp_tile_t *tile) {
 int main() {
   //(callback, PP_AA_X4, {0, 0, WIDTH, HEIGHT});
   
-  pp_tile_callback(tile_render_callback);
+  pp_tile_callback(blend_tile);
   pp_antialias(PP_AA_X4);
   pp_clip(0, 0, WIDTH, HEIGHT);
 
@@ -36,16 +36,19 @@ int main() {
     }
   }
 
-  pp_point_t square_outline[] = { // outline contour
-    {-128, -128}, {128, -128}, {128, 128}, {-128, 128}
+  pp_point_t points[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
+
+  pp_contour_t contour = {
+    .points = &points, 
+    .point_count = 4
   };
 
-  pp_contour_t square_contours[] = {
-    (pp_contour_t){.points = square_outline, .point_count = sizeof(square_outline) / sizeof(pp_point_t)}
+  pp_polygon_t polygon = {
+    .contours = &contour,
+    .contour_count = 1
   };
 
-  pp_polygon_t square = (pp_polygon_t){.contours = square_contours, .contour_count = sizeof(square_contours) / sizeof(pp_contour_t)};
-
+  pp_render(&polygon);
   
   for(int i = 0; i < 1000; i += 10) {
     pp_mat3_t t = pp_mat3_identity();
@@ -62,7 +65,7 @@ int main() {
     set_pen(create_colour_hsv(hue, 1.0f, 1.0f, 0.1f));
 
 
-    draw_polygon(&square);
+    pp_render(&polygon);
   }
 
   stbi_write_png("/tmp/out.png", WIDTH, HEIGHT, 4, (void *)buffer, WIDTH * sizeof(uint32_t));
