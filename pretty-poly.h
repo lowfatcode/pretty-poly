@@ -56,36 +56,36 @@ typedef struct {
   float v00, v10, v20, v01, v11, v21, v02, v12, v22;
 } pp_mat3_t;
 static pp_mat3_t pp_mat3_identity();
-static pp_mat3_t pp_mat3_rotation(float a);
-static pp_mat3_t pp_mat3_rotation_rad(float a);
-static pp_mat3_t pp_mat3_translation(float x, float y);
-static pp_mat3_t pp_mat3_scale(float x, float y);
-static pp_mat3_t pp_mat3_mul(pp_mat3_t m1, pp_mat3_t m2);
+static void pp_mat3_rotate(pp_mat3_t *m, float a);
+static void pp_mat3_rotate_rad(pp_mat3_t *m, float a);
+static void pp_mat3_translate(pp_mat3_t *m, float x, float y);
+static void pp_mat3_scale(pp_mat3_t *m, float x, float y);
+static void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2);
 
 // point type used to hold polygon vertex coordinates
 typedef struct {
   PP_COORD_TYPE x, y;
 } pp_point_t;
-static pp_point_t pp_point_add(pp_point_t p1, pp_point_t p2);
-static pp_point_t pp_point_sub(pp_point_t p1, pp_point_t p2);
-static pp_point_t pp_point_mul(pp_point_t p1, pp_point_t p2);
-static pp_point_t pp_point_div(pp_point_t p1, pp_point_t p2);
-static pp_point_t pp_point_transform(pp_point_t p, pp_mat3_t *m);
+static pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2);
+static pp_point_t pp_point_sub(pp_point_t *p1, pp_point_t *p2);
+static pp_point_t pp_point_mul(pp_point_t *p1, pp_point_t *p2);
+static pp_point_t pp_point_div(pp_point_t *p1, pp_point_t *p2);
+static pp_point_t pp_point_transform(pp_point_t *p, pp_mat3_t *m);
 
 // rect type
 typedef struct {
   int32_t x, y, w, h;    
 } pp_rect_t;
-bool pp_rect_empty(pp_rect_t r);
-static pp_rect_t pp_rect_intersection(pp_rect_t r1, pp_rect_t r2);
-static pp_rect_t pp_rect_merge(pp_rect_t r1, pp_rect_t r2);
-static pp_rect_t pp_rect_transform(pp_rect_t r, pp_mat3_t *m);
+bool pp_rect_empty(pp_rect_t *r);
+static pp_rect_t pp_rect_intersection(pp_rect_t *r1, pp_rect_t *r2);
+static pp_rect_t pp_rect_merge(pp_rect_t *r1, pp_rect_t *r2);
+static pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m);
 
 // antialias levels
 typedef enum {PP_AA_NONE = 0, PP_AA_X4 = 1, PP_AA_X16 = 2} pp_antialias_t;
 
 typedef struct {
-  pp_rect_t bounds;
+  int32_t x, y, w, h;
   uint32_t stride;
   uint8_t *data;
 } pp_tile_t;
@@ -101,7 +101,7 @@ typedef struct {
 } pp_polygon_t;
 
 // user settings
-typedef void (*pp_tile_callback_t)(const pp_tile_t tile);
+typedef void (*pp_tile_callback_t)(const pp_tile_t *tile);
 
 pp_rect_t           _pp_clip;
 pp_tile_callback_t  _pp_tile_callback;
@@ -109,7 +109,7 @@ pp_antialias_t      _pp_antialias;
 pp_mat3_t          *_pp_transform;
 
 
-static void pp_clip(pp_rect_t clip);
+static void pp_clip(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 static void pp_tile_callback(pp_tile_callback_t callback);
 static void pp_antialias(pp_antialias_t antialias);
 static void pp_transform(pp_mat3_t *transform);
@@ -127,85 +127,90 @@ void    _pp_swap(int32_t *a, int32_t *b) {int32_t t = *a; *a = *b; *b = t;}
 // pp_mat3_t implementation
 static pp_mat3_t pp_mat3_identity() {
   pp_mat3_t m; memset(&m, 0, sizeof(pp_mat3_t)); m.v00 = m.v11 = m.v22 = 1.0f; return m;}
-static pp_mat3_t pp_mat3_rotation(float a) {
-  return pp_mat3_rotation_rad(a * M_PI / 180.0f);}
-static pp_mat3_t pp_mat3_rotation_rad(float a) {
+static void pp_mat3_rotate(pp_mat3_t *m, float a) {
+  pp_mat3_rotate_rad(m, a * M_PI / 180.0f);}
+static void pp_mat3_rotate_rad(pp_mat3_t *m, float a) {
   float c = cosf(a), s = sinf(a); pp_mat3_t r = pp_mat3_identity();
-  r.v00 = c; r.v01 = s; r.v10 = -s; r.v11 = c; return r;}
-static pp_mat3_t pp_mat3_translation(float x, float y) {
-  pp_mat3_t r = pp_mat3_identity(); r.v02 = x; r.v12 = y; return r;}
-static pp_mat3_t pp_mat3_scale(float x, float y) {
-  pp_mat3_t r = pp_mat3_identity(); r.v00 = x; r.v11 = y; return r;}
-static pp_mat3_t pp_mat3_mul(pp_mat3_t m1, pp_mat3_t m2) {
+  r.v00 = c; r.v01 = s; r.v10 = -s; r.v11 = c; pp_mat3_mul(m, &r); }
+static void pp_mat3_translate(pp_mat3_t *m, float x, float y) {
+  pp_mat3_t r = pp_mat3_identity(); r.v02 = x; r.v12 = y; pp_mat3_mul(m, &r);}
+static void pp_mat3_scale(pp_mat3_t *m, float x, float y) {
+  pp_mat3_t r = pp_mat3_identity(); r.v00 = x; r.v11 = y; pp_mat3_mul(m, &r);}
+static void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2) {
   pp_mat3_t r;
-  r.v00 = m1.v00 * m2.v00 + m1.v01 * m2.v10 + m1.v02 * m2.v20;
-  r.v01 = m1.v00 * m2.v01 + m1.v01 * m2.v11 + m1.v02 * m2.v21;
-  r.v02 = m1.v00 * m2.v02 + m1.v01 * m2.v12 + m1.v02 * m2.v22;
-  r.v10 = m1.v10 * m2.v00 + m1.v11 * m2.v10 + m1.v12 * m2.v20;
-  r.v11 = m1.v10 * m2.v01 + m1.v11 * m2.v11 + m1.v12 * m2.v21;
-  r.v12 = m1.v10 * m2.v02 + m1.v11 * m2.v12 + m1.v12 * m2.v22;
-  r.v20 = m1.v20 * m2.v00 + m1.v21 * m2.v10 + m1.v22 * m2.v20;
-  r.v21 = m1.v20 * m2.v01 + m1.v21 * m2.v11 + m1.v22 * m2.v21;
-  r.v22 = m1.v20 * m2.v02 + m1.v21 * m2.v12 + m1.v22 * m2.v22;    
-  return r;
+  r.v00 = m1->v00 * m2->v00 + m1->v01 * m2->v10 + m1->v02 * m2->v20;
+  r.v01 = m1->v00 * m2->v01 + m1->v01 * m2->v11 + m1->v02 * m2->v21;
+  r.v02 = m1->v00 * m2->v02 + m1->v01 * m2->v12 + m1->v02 * m2->v22;
+  r.v10 = m1->v10 * m2->v00 + m1->v11 * m2->v10 + m1->v12 * m2->v20;
+  r.v11 = m1->v10 * m2->v01 + m1->v11 * m2->v11 + m1->v12 * m2->v21;
+  r.v12 = m1->v10 * m2->v02 + m1->v11 * m2->v12 + m1->v12 * m2->v22;
+  r.v20 = m1->v20 * m2->v00 + m1->v21 * m2->v10 + m1->v22 * m2->v20;
+  r.v21 = m1->v20 * m2->v01 + m1->v21 * m2->v11 + m1->v22 * m2->v21;
+  r.v22 = m1->v20 * m2->v02 + m1->v21 * m2->v12 + m1->v22 * m2->v22;    
+  *m1 = r;
 }
 
 // pp_point_t implementation
-static pp_point_t pp_point_add(pp_point_t p1, pp_point_t p2) {
-  return (pp_point_t){.x = p1.x + p2.x, .y = p1.y + p2.y};
+static pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2) {
+  return (pp_point_t){.x = p1->x + p2->x, .y = p1->y + p2->y};
 }
-static pp_point_t pp_point_sub(pp_point_t p1, pp_point_t p2) {
-  return (pp_point_t){.x = p1.x - p2.x, .y = p1.y - p2.y};
+static pp_point_t pp_point_sub(pp_point_t *p1, pp_point_t *p2) {
+  return (pp_point_t){.x = p1->x - p2->x, .y = p1->y - p2->y};
 }
-static pp_point_t pp_point_mul(pp_point_t p1, pp_point_t p2) {
-  return (pp_point_t){.x = p1.x * p2.x, .y = p1.y * p2.y};
+static pp_point_t pp_point_mul(pp_point_t *p1, pp_point_t *p2) {
+  return (pp_point_t){.x = p1->x * p2->x, .y = p1->y * p2->y};
 }
-static pp_point_t pp_point_div(pp_point_t p1, pp_point_t p2) {
-  return (pp_point_t){.x = p1.x / p2.x, .y = p1.y / p2.y};
+static pp_point_t pp_point_div(pp_point_t *p1, pp_point_t *p2) {
+  return (pp_point_t){.x = p1->x / p2->x, .y = p1->y / p2->y};
 }
-static pp_point_t pp_point_transform(pp_point_t p, pp_mat3_t *m) {
+static pp_point_t pp_point_transform(pp_point_t *p, pp_mat3_t *m) {
   return (pp_point_t){
-    .x = (m->v00 * p.x + m->v01 * p.y + m->v02),
-    .y = (m->v10 * p.x + m->v11 * p.y + m->v12)
+    .x = (m->v00 * p->x + m->v01 * p->y + m->v02),
+    .y = (m->v10 * p->x + m->v11 * p->y + m->v12)
   };
 }
 
 // pp_rect_t implementation
-bool pp_rect_empty(pp_rect_t r) {
-  return r.w == 0 || r.h == 0;
+bool pp_rect_empty(pp_rect_t *r) {
+  return r->w == 0 || r->h == 0;
 }
-pp_rect_t pp_rect_intersection(pp_rect_t r1, pp_rect_t r2) {
+pp_rect_t pp_rect_intersection(pp_rect_t *r1, pp_rect_t *r2) {
   return (pp_rect_t){
-    .x = _pp_max(r1.x, r2.x), .y = _pp_max(r1.y, r2.y),
-    .w = _pp_max(0, _pp_min(r1.x + r1.w, r2.x + r2.w) - _pp_max(r1.x, r2.x)),
-    .h = _pp_max(0, _pp_min(r1.y + r1.h, r2.y + r2.h) - _pp_max(r1.y, r2.y))
+    .x = _pp_max(r1->x, r2->x), .y = _pp_max(r1->y, r2->y),
+    .w = _pp_max(0, _pp_min(r1->x + r1->w, r2->x + r2->w) - _pp_max(r1->x, r2->x)),
+    .h = _pp_max(0, _pp_min(r1->y + r1->h, r2->y + r2->h) - _pp_max(r1->y, r2->y))
   };
 }
-pp_rect_t pp_rect_merge(pp_rect_t r1, pp_rect_t r2) {
+pp_rect_t pp_rect_merge(pp_rect_t *r1, pp_rect_t *r2) {
   return (pp_rect_t){
-    .x = _pp_min(r1.x, r2.x), 
-    .y = _pp_min(r1.y, r2.y),
-    .w = _pp_max(r1.x + r1.w, r2.x + r2.w) - _pp_min(r1.x, r2.x),
-    .h = _pp_max(r1.y + r1.h, r2.y + r2.h) - _pp_min(r1.y, r2.y)
+    .x = _pp_min(r1->x, r2->x), 
+    .y = _pp_min(r1->y, r2->y),
+    .w = _pp_max(r1->x + r1->w, r2->x + r2->w) - _pp_min(r1->x, r2->x),
+    .h = _pp_max(r1->y + r1->h, r2->y + r2->h) - _pp_min(r1->y, r2->y)
   };
 }
-pp_rect_t pp_rect_transform(pp_rect_t r, pp_mat3_t *m) {
-  pp_point_t tl = (pp_point_t){.x = (PP_COORD_TYPE)r.x, .y = (PP_COORD_TYPE)r.y};
-  pp_point_t tr = (pp_point_t){.x = (PP_COORD_TYPE)r.x + (PP_COORD_TYPE)r.w, .y = (PP_COORD_TYPE)r.y};
-  pp_point_t bl = (pp_point_t){.x = (PP_COORD_TYPE)r.x, .y = (PP_COORD_TYPE)r.y + (PP_COORD_TYPE)r.h};
-  pp_point_t br = (pp_point_t){.x = (PP_COORD_TYPE)r.x + (PP_COORD_TYPE)r.w, .y = (PP_COORD_TYPE)r.y + (PP_COORD_TYPE)r.h};
+pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m) {
+  pp_point_t tl = {.x = (PP_COORD_TYPE)r->x, .y = (PP_COORD_TYPE)r->y};
+  pp_point_t tr = {.x = (PP_COORD_TYPE)r->x + (PP_COORD_TYPE)r->w, .y = (PP_COORD_TYPE)r->y};
+  pp_point_t bl = {.x = (PP_COORD_TYPE)r->x, .y = (PP_COORD_TYPE)r->y + (PP_COORD_TYPE)r->h};
+  pp_point_t br = {.x = (PP_COORD_TYPE)r->x + (PP_COORD_TYPE)r->w, .y = (PP_COORD_TYPE)r->y + (PP_COORD_TYPE)r->h};
 
-  tl = pp_point_transform(tl, m);
-  tr = pp_point_transform(tr, m);
-  bl = pp_point_transform(bl, m);
-  br = pp_point_transform(br, m);
+  tl = pp_point_transform(&tl, m);
+  tr = pp_point_transform(&tr, m);
+  bl = pp_point_transform(&bl, m);
+  br = pp_point_transform(&br, m);
 
   PP_COORD_TYPE minx = _pp_min(tl.x, _pp_min(tr.x, _pp_min(bl.x, br.x)));
   PP_COORD_TYPE miny = _pp_min(tl.y, _pp_min(tr.y, _pp_min(bl.y, br.y)));
   PP_COORD_TYPE maxx = _pp_max(tl.x, _pp_max(tr.x, _pp_max(bl.x, br.x)));
   PP_COORD_TYPE maxy = _pp_max(tl.y, _pp_max(tr.y, _pp_max(bl.y, br.y)));
 
-  return (pp_rect_t){.x = (int32_t)minx, .y = (int32_t)miny, .w = (int32_t)(maxx - minx), .h = (int32_t)(maxy - miny)};
+  return (pp_rect_t){
+    .x = (int32_t)minx, 
+    .y = (int32_t)miny, 
+    .w = (int32_t)(maxx - minx), 
+    .h = (int32_t)(maxy - miny)
+  };
 }
 
 // pp_tile_t implementation
@@ -214,23 +219,24 @@ int pp_tile_get_value(const pp_tile_t *tile, const int x, const int y) {
 }
 
 // pp_contour_t implementation
-pp_rect_t pp_contour_bounds(const pp_contour_t c) {
-  int minx = c.points[0].x, maxx = minx;
-  int miny = c.points[0].y, maxy = miny;
-  for(uint32_t i = 1; i < c.point_count; i++) {
-    minx = _pp_min(minx, c.points[i].x);
-    miny = _pp_min(miny, c.points[i].y);
-    maxx = _pp_max(maxx, c.points[i].x); 
-    maxy = _pp_max(maxy, c.points[i].y);
-  }
+pp_rect_t pp_contour_bounds(const pp_contour_t *c) {
+  int minx = c->points[0].x, maxx = minx;
+  int miny = c->points[0].y, maxy = miny;
+  for(uint32_t i = 1; i < c->point_count; i++) {
+    minx = _pp_min(minx, c->points[i].x);
+    miny = _pp_min(miny, c->points[i].y);
+    maxx = _pp_max(maxx, c->points[i].x); 
+    maxy = _pp_max(maxy, c->points[i].y);
+  }  
   return (pp_rect_t){.x = minx, .y = miny, .w = maxx - minx, .h = maxy - miny};
 }
 
-pp_rect_t pp_polygon_bounds(pp_polygon_t p) {
-  if(p.contour_count == 0) {return (pp_rect_t){};}
-  pp_rect_t b = pp_contour_bounds(p.contours[0]);
-  for(uint32_t i = 1; i < p.contour_count; i++) {
-    b = pp_rect_merge(b, pp_contour_bounds(p.contours[i]));
+pp_rect_t pp_polygon_bounds(pp_polygon_t *p) {
+  if(p->contour_count == 0) {return (pp_rect_t){};}
+  pp_rect_t b = pp_contour_bounds(&p->contours[0]);
+  for(uint32_t i = 1; i < p->contour_count; i++) {
+    pp_rect_t cb = pp_contour_bounds(&p->contours[i]);
+    b = pp_rect_merge(&b, &cb);
   }
   return b;
 }
@@ -246,22 +252,22 @@ const uint32_t node_buffer_size = PP_MAX_INTERSECTIONS * 2;
 int32_t nodes[node_buffer_size][PP_MAX_INTERSECTIONS * 2];
 uint32_t node_counts[node_buffer_size];
 
-// default tile bounds to X1 antialiasing
-pp_rect_t tile_bounds;
 
-void pp_clip(pp_rect_t clip) {
-  _pp_clip = clip;
+void pp_clip(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+  _pp_clip = (pp_rect_t){.x = x, .y = y, .w = w, .h = h};
 }
 
 void pp_tile_callback(pp_tile_callback_t callback) {
   _pp_tile_callback = callback;
 }
 
+// maximum tile bounds determined by antialias level
+int32_t _pp_tile_width, _pp_tile_height;
 void pp_antialias(pp_antialias_t antialias) {
   _pp_antialias = antialias;
   // recalculate the tile size for rendering based on antialiasing level
-  int tile_height = node_buffer_size >> _pp_antialias;
-  tile_bounds = (pp_rect_t){.x = 0, .y = 0, .w = (int)(tile_buffer_size / tile_height), .h = tile_height};
+  _pp_tile_height = node_buffer_size >> _pp_antialias;
+  _pp_tile_width = (int)(tile_buffer_size / _pp_tile_height);
 }
 
 void pp_transform(pp_mat3_t *transform) {
@@ -273,10 +279,10 @@ void pp_transform(pp_mat3_t *transform) {
 
 // write out the tile bits
 void debug_tile(const pp_tile_t *tile) {
-  debug("  - tile %d, %d (%d x %d)\n", tile->bounds.x, tile->bounds.y, tile->bounds.w, tile->bounds.h);
-  for(int32_t y = 0; y < tile->bounds.h; y++) {
+  debug("  - tile %d, %d (%d x %d)\n", tile->x, tile->y, tile->w, tile->h);
+  for(int32_t y = 0; y < tile->h; y++) {
     debug("[%3d]: ", y);
-    for(int32_t x = 0; x < tile->bounds.w; x++) {
+    for(int32_t x = 0; x < tile->w; x++) {
       debug("%02x", pp_tile_get_value(tile, x, y));
     }  
     debug("\n");              
@@ -313,7 +319,7 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
     return;
   }
 
-  const int full_tile_width = (tile_bounds.w << _pp_antialias);
+  const int full_tile_width = (_pp_tile_width << _pp_antialias);
   if (_pp_min(sx, ex) >= full_tile_width) {
     while (count--) {
       nodes[y][node_counts[y]++] = full_tile_width;
@@ -377,43 +383,43 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
 #endif
 }
 
-void build_nodes(const pp_contour_t contour, const pp_tile_t tile) {
+void build_nodes(pp_contour_t *contour, pp_rect_t *bounds) {
   PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
 
   pp_point_t tile_origin = (pp_point_t) {
-    .x = tile.bounds.x * aa_scale,
-    .y = tile.bounds.y * aa_scale
+    .x = bounds->x * aa_scale,
+    .y = bounds->y * aa_scale
   };
 
   // start with the last point to close the loop
   pp_point_t last = {
-    .x = (contour.points[contour.point_count - 1].x),
-    .y = (contour.points[contour.point_count - 1].y)
+    .x = (contour->points[contour->point_count - 1].x),
+    .y = (contour->points[contour->point_count - 1].y)
   };
 
   if(_pp_transform) {
-    last = pp_point_transform(last, _pp_transform);
+    last = pp_point_transform(&last, _pp_transform);
   }
 
   last.x *= aa_scale;
   last.y *= aa_scale;
 
-  last = pp_point_sub(last, tile_origin);
+  last = pp_point_sub(&last, &tile_origin);
 
-  for(uint32_t i = 0; i < contour.point_count; i++) {
+  for(uint32_t i = 0; i < contour->point_count; i++) {
     pp_point_t point = {
-      .x = (contour.points[i].x),
-      .y = (contour.points[i].y)
+      .x = (contour->points[i].x),
+      .y = (contour->points[i].y)
     };
 
     if(_pp_transform) {
-      point = pp_point_transform(point, _pp_transform);
+      point = pp_point_transform(&point, _pp_transform);
     }
 
     point.x *= aa_scale;
     point.y *= aa_scale;
 
-    point = pp_point_sub(point, tile_origin);
+    point = pp_point_sub(&point, &tile_origin);
 
     add_line_segment_to_nodes(last, point);
     
@@ -425,23 +431,25 @@ int compare_nodes(const void* a, const void* b) {
   return *((int*)a) - *((int*)b);
 }
 
-void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
+pp_rect_t render_nodes(uint8_t *buffer, pp_rect_t *tb) {
   int maxy = -1;
-  bounds->y = 0;
-  bounds->x = tile.bounds.w;
+
+  pp_rect_t rb; // render bounds
+  rb.y = 0;
+  rb.x = tb->w;
   int maxx = 0;
   PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
   int anitialias_mask = (1 << _pp_antialias) - 1;
 
   for(uint32_t y = 0; y < node_buffer_size; y++) {
     if(node_counts[y] == 0) {
-      if (y == bounds->y) ++bounds->y;
+      if (y == rb.y) ++rb.y;
       continue;
     }
 
     qsort(&nodes[y][0], node_counts[y], sizeof(int), compare_nodes);
 
-    unsigned char* row_data = &tile.data[(y >> _pp_antialias) * tile.stride];
+    unsigned char* row_data = &buffer[(y >> _pp_antialias) * _pp_tile_width];
     bool rendered_any = false;
     for(uint32_t i = 0; i < node_counts[y]; i += 2) {
       int sx = nodes[y][i + 0];
@@ -461,7 +469,7 @@ void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
         int ax = sx / aa_scale;
         const int aex = ex / aa_scale;
 
-        bounds->x = _pp_min(ax, bounds->x);
+        rb.x = _pp_min(ax, rb.x);
 
         if (ax == aex) {
           row_data[ax] += ex - sx;
@@ -477,7 +485,7 @@ void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
         // by 1 byte to ensure that is OK
         row_data[ax] += ex & anitialias_mask;
       } else {
-        bounds->x = _pp_min(sx, bounds->x);
+        rb.x = _pp_min(sx, rb.x);
         for(int x = sx; x < ex; x++) {
           row_data[x]++;
         }       
@@ -488,24 +496,25 @@ void render_nodes(const pp_tile_t tile, pp_rect_t *bounds) {
       debug("  - rendered line %d\n", y);
       maxy = y;
     }
-    else if (y == bounds->y) {
+    else if (y == rb.y) {
       debug(" - render nothing on line %d\n", y);
-      ++bounds->y;
+      ++rb.y;
     }
   }
 
-  bounds->y >>= _pp_antialias;
+  rb.y >>= _pp_antialias;
   maxy >>= _pp_antialias;
-  bounds->w = (maxx >= bounds->x) ? maxx + 1 - bounds->x : 0;
-  bounds->h = (maxy >= bounds->y) ? maxy + 1 - bounds->y : 0;
-  debug(" - rendered tile bounds %d, %d (%d x %d)\n", bounds->x, bounds->y, bounds->w, bounds->h);
+  rb.w = (maxx >= rb.x) ? maxx + 1 - rb.x : 0;
+  rb.h = (maxy >= rb.y) ? maxy + 1 - rb.y : 0;
+
+  return rb;
 }
 
-void draw_polygon(const pp_polygon_t polygon) {
+void draw_polygon(pp_polygon_t *polygon) {
 
-  debug("> draw polygon with %u contours\n", polygon.contour_count);
+  debug("> draw polygon with %u contours\n", polygon->contour_count);
 
-  if(polygon.contour_count == 0) {
+  if(polygon->contour_count == 0) {
     return;
   }
 
@@ -513,7 +522,7 @@ void draw_polygon(const pp_polygon_t polygon) {
   pp_rect_t polygon_bounds = pp_polygon_bounds(polygon);
 
   if(_pp_transform) {
-    polygon_bounds = pp_rect_transform(polygon_bounds, _pp_transform);
+    polygon_bounds = pp_rect_transform(&polygon_bounds, _pp_transform);
   }
 
   debug("  - bounds %d, %d (%d x %d)\n", polygon_bounds.x, polygon_bounds.y, polygon_bounds.w, polygon_bounds.h);
@@ -532,48 +541,43 @@ void draw_polygon(const pp_polygon_t polygon) {
 
   // iterate over tiles
   debug("  - processing tiles\n");
-  for(int32_t y = polygon_bounds.y; y < polygon_bounds.y + polygon_bounds.h; y += tile_bounds.h) {
-    for(int32_t x = polygon_bounds.x; x < polygon_bounds.x + polygon_bounds.w; x += tile_bounds.w) {
-      pp_tile_t tile = {
-        .bounds = pp_rect_intersection((pp_rect_t){.x = x, .y = y, .w = tile_bounds.w, .h = tile_bounds.h}, _pp_clip),
-        .stride = (uint32_t)tile_bounds.w,
-        .data = tile_buffer
-      };
-      debug("    : %d, %d (%d x %d)\n", tile.bounds.x, tile.bounds.y, tile.bounds.w, tile.bounds.h);
+  for(int32_t y = polygon_bounds.y; y < polygon_bounds.y + polygon_bounds.h; y += _pp_tile_height) {
+    for(int32_t x = polygon_bounds.x; x < polygon_bounds.x + polygon_bounds.w; x += _pp_tile_width) {
+      pp_rect_t tb = (pp_rect_t){.x = x, .y = y, .w = _pp_tile_width, .h = _pp_tile_height};
+      tb = pp_rect_intersection(&tb, &_pp_clip);
+      debug("    : %d, %d (%d x %d)\n", tb.x, tb.y, tb.w, tb.h);
 
       // if no intersection then skip tile
-      if(pp_rect_empty(tile.bounds)) {
-        debug("    : empty when clipped, skipping\n");
-        continue;
-      }
+      if(pp_rect_empty(&tb)) { debug("    : empty when clipped, skipping\n"); continue; }
 
       // clear existing tile data and nodes
       memset(node_counts, 0, sizeof(node_counts));
-      memset(tile.data, 0, tile_buffer_size);
+      memset(tile_buffer, 0, tile_buffer_size);
 
       // build the nodes for each contour
-      for(uint32_t i = 0; i < polygon.contour_count; i++) {
-        pp_contour_t contour = polygon.contours[i];
+      for(uint32_t i = 0; i < polygon->contour_count; i++) {
+        pp_contour_t contour = polygon->contours[i];
         debug("    : build nodes for contour\n");
-        build_nodes(contour, tile);
+        build_nodes(&contour, &tb);
       }
 
       debug("    : render the tile\n");
       // render the tile
-      pp_rect_t bounds;
-      render_nodes(tile, &bounds);
 
-      tile.data += bounds.x + tile.stride * bounds.y;
-      bounds.x += tile.bounds.x;
-      bounds.y += tile.bounds.y;
-      debug(" - adjusted render tile bounds %d, %d (%d x %d)\n", bounds.x, bounds.y, bounds.w, bounds.h);
-      debug(" - tile bounds %d, %d (%d x %d)\n", tile.bounds.x, tile.bounds.y, tile.bounds.w, tile.bounds.h);
-      tile.bounds = pp_rect_intersection(bounds, tile.bounds);
-      if (pp_rect_empty(tile.bounds)) {
-        continue;
-      }
+      pp_rect_t rb = render_nodes(tile_buffer, &tb);
+      tb.x += rb.x; tb.y += rb.y; tb.w = rb.w; tb.h = rb.h;
 
-      _pp_tile_callback(tile);
+      debug(" - adjusted render tile bounds %d, %d (%d x %d)\n", rb.x, rb.y, rb.w, rb.h);
+
+      if(pp_rect_empty(&tb)) { debug("    : empty after rendering, skipping\n"); continue; }
+
+      pp_tile_t tile = {        
+        .x = tb.x, .y = tb.y, .w = tb.w, .h = tb.h,
+        .stride = _pp_tile_width,
+        .data = tile_buffer + rb.x + _pp_tile_width * rb.y
+      };
+
+      _pp_tile_callback(&tile);
     }
   }
 

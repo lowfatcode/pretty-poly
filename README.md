@@ -34,83 +34,78 @@ Features:
 
 ## Using Pretty Poly
 
-Pretty Poly is a header only C++ library.
+Pretty Poly is a header only C17 library.
 
-Making use of it is as easy as copying `pretty-poly.hpp` into your project and including it in the source file where you need to access.
+Making use of it is as easy as copying `pretty-poly.h` into your project and including it in the source file where you need to access.
 
 A basic example might look like:
 
-```c++
-#include "pretty-poly.hpp"
-using namespace pretty_poly;
+```c
+#include "pretty-poly.h"
 
-// 565 RGB format framebuffer perhaps?
-constexpr unsigned WIDTH = 320;
-constexpr unsigned HEIGHT = 240;
-uint16_t framebuffer[WIDTH * HEIGHT];
-
-void callback(const tile_t &tile) {
-  // TODO:
-  // process the tile image data here - see below for details
+void callback(const tile_t tile) {
+  // TODO: process the tile data here - see below for details
 }
 
 int main() {
-  // you must call set_options first to specify 
-  // your callback function, what level of super-sampling 
-  // to use, and your clip rectangle
-  set_options(callback, X4, {0, 0, WIDTH, HEIGHT});
+  // supply your tile blending callback function
+  pp_tile_callback(callback); 
+
+  // specificy the level of antialiasing
+  pp_antialias(PP_AA_X4);
+
+  // set the clip rectangle
+  pp_clip((pp_rect_t){.x = 0, .y = 0, .w = WIDTH, .h = HEIGHT});
 
   // outline contour of letter "a" in Roboto Black
-  contour_t<int> a_outer({
-    36, 0, 34, -5, 21, 1, 16, 0, 8, -4, 2, -16, 6, -24, 15, -31, 28, -34, 34, -34, 34, 37, 27, -44, 21, -38, 4, -38, 4, -41, 11, -47, 21, -51, 33, -51, 43, -47, 51, -37, 51, -13, 53, -1, 53, 0
-  });
+  pp_point_t a_outer[] = { // outline contour
+    {36, 0}, {34, -5}, {21, 1}, {16, 0}, {8, -4}, {2, -16}, {6, -24}, 
+    {15, -31}, {28, -34}, {34, -34}, {34, 37}, {27, -44}, {21, -38}, {4, -38}, 
+    {4, -41}, {11, -47}, {21, -51}, {33, -51}, {43, -47}, {51, -37}, {51, -13}, 
+    {53, -1}, {53, 0}
+  };
 
   // outline of hole in letter "a" in Roboto Black
-  contour_t<int> a_inner({ 
-    25, -11, 34, -16, 34, -25, 29, -25, 24, -24, 20, -17
+  pp_point_t a_inner[] = { // outline contour
+    {25, -11}, {34, -16}, {34, -25}, {29, -25}, {24, -24}, {20, -17}
   });
 
-  // single contour
-  draw_polygon(a_outer);
+  // create contours
+  pp_contour_t a_contours[] = {
+    {.points = a_outer, .point_count = sizeof(a_outer) / sizeof(pp_point_t)},
+    {.points = a_inner, .point_count = sizeof(a_inner) / sizeof(pp_point_t)}
+  };
 
-  // multiple contours
-  draw_polygon({a_outer, a_inner});
+  // create the multi contour polygon
+  pp_polygon_t a_polygon = {
+    .contours = a_contours, 
+    .contour_count = sizeof(a_contours) / sizeof(pp_contour_t)
+  };
+
+  // draw the polygon
+  draw_polygon(a_polygon);
 
   return 0;
 }
 ```
 
-### `set_options()`
-
-Before drawing any polygons you must call `set_options` to specify your callback function, what level of super-sampling to use, and your clip rectangle.
-
-```c++
-void set_options(
-  tile_callback_t callback, 
-  antialias_t antialias, 
-  rect_t clip
-)
-```
-
-All three parameters are required:
-
-`callback` (`tile_callback_t`)
+### `pp_tile_callback(tile_callback_t)`
 
 Specifies a callback function that will blend tiles into your framebuffer. This callback will potentially be called multiple times per polygon depending on their size and shape and the level of super-sampling being used.
 
 See the [`tile_callback_t`](#tile_callback_t) type for more information.
 
-`antialias` (`antialias_t`)
+### `pp_antialias(pp_antialias_t)`
 
 Set the level of super-sampling to use during rendering. The higher the level of sampling the slower drawing will be, it's a trade off between speed and quality.
 Supported modes are:
-  - `X1`: no antialiasing
-  - `X4`: 4 x super-sampling (2x2 sample grid)
-  - `X16`: 16 x super-sampling (4x4 sample grid)
+  - `PP_AA_NONE`: no antialiasing
+  - `PP_AA_X4`: 4 x super-sampling (2x2 sample grid)
+  - `PP_AA_X16`: 16 x super-sampling (4x4 sample grid)
   
-See the [`antialias_t`](#antialias_t) type for more information.
+See the [`pp_antialias_t`](#pp_antialias_t) type for more information.
   
-`clip` (`rect_t`)
+### `pp_clip(pp_rect_t )`
 
 Clipping rectangle in framebuffer coordinates. Pretty Poly will clip all drawing to this rectangle, normally you would set this to your screen bounds though it could also be used to limit drawing to a specific area of the screen.
 
@@ -198,14 +193,14 @@ void callback(const tile_t &tile) {
 Callback function prototype.
 
 ```c++
-typedef void (*tile_callback_t)(const tile_t &tile);
+typedef void (*pp_tile_callback_t)(const pp_tile_t *tile);
 ```
 
-Create your own matching callback function to supply to `set_options()` - for example:
+Create your own matching callback function to supply to `pp_tile_callback()` - for example:
 
 ```c++
-void callback(const tile_t &tile) {
-  // perform your framebuffer blending here
+void tile_render_callback(const pp_tile_t *tile) {
+    // perform your framebuffer blending here
 }
 ```
 
@@ -216,7 +211,6 @@ Note that on RP2040 interp1 is used by pretty poly.  If your callback uses inter
 Information needed to blend a rendered tile into your framebuffer.
 
 ```c++
-
   struct tile_t {
     rect_t bounds;    // bounds of tile in framebuffer coordinates
     unsigned stride;  // width of row in bytes
@@ -234,9 +228,9 @@ This object is passed into your callback function for each tile providing the ar
 Defines a rectangle with a top left corner, width, and height.
 
 ```c++
-  struct rect_t {
-    int x; // left edge
-    int y; // top edge
+  struct pp_rect_t {
+    int x; // left
+    int y; // top
     int w; // width
     int h; // height
 
@@ -251,14 +245,14 @@ Defines a rectangle with a top left corner, width, and height.
 
 Used to define clipping rectangle and tile bounds.
 
-### `antialias_t`
+### `pp_antialias_t`
 
 Enumeration of valid anti-aliasing modes.
 
 ```c++
 enum antialias_t {
-  NONE = 0, // no antialiasing
-  X4   = 1, // 4x super sampling (2x2 grid)
-  X16  = 2  // 16x super sampling (4x4 grid)
+  PP_AA_NONE = 0, // no antialiasing
+  PP_AA_X4   = 1, // 4x super sampling (2x2 grid)
+  PP_AA_X16  = 2  // 16x super sampling (4x4 grid)
 };
 ```

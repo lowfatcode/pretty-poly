@@ -4,10 +4,9 @@
         {
             "type": "shell",
             "label": "C/C++: clang++ build active file",
-            "command": "/usr/bin/clang++",
+            "command": "/usr/bin/clang",
             "args": [
-                "-std=c++17",
-                "-stdlib=libc++",
+                "-std=c17",
                 "-g",
                 "${file}",
                 "-I",
