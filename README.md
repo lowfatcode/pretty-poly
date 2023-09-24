@@ -206,22 +206,24 @@ void tile_render_callback(const pp_tile_t *tile) {
 
 Note that on RP2040 interp1 is used by pretty poly.  If your callback uses interp1 it must save and restore the state.
 
-### `tile_t`
+### `pp_tile_t`
 
 Information needed to blend a rendered tile into your framebuffer.
 
 ```c++
   struct tile_t {
-    rect_t bounds;    // bounds of tile in framebuffer coordinates
-    unsigned stride;  // width of row in bytes
-    uint8_t *data;    // pointer to mask data
-
-    tile_t() {};
-    int get_value(int x, int y);
+    int32_t x, y, w, h;  // bounds of tile in framebuffer coordinates
+    uint32_t stride;     // row stride of tile data
+    uint8_t *data;       // pointer to start of mask data
   };
 ```
 
 This object is passed into your callback function for each tile providing the area of the framebuffer to write to with the mask data needed for blending.
+
+`uint8_t pp_tile_get_value(pp_tile_t *tile, int32_t x, int32_t y)`
+`
+
+Returns the value in the tile at `x`, `y `
 
 ### `rect_t`
 

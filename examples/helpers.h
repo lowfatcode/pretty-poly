@@ -2,6 +2,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <sys/time.h>
 
 typedef union {
   struct __attribute__((__packed__)) {
@@ -65,4 +66,10 @@ colour create_colour_hsv(float h, float s, float v, float a) {
     case 4: return create_colour(t, p, bv, a * 255);
     case 5: return create_colour(bv, p, q, a * 255);
     }
+}
+
+uint64_t time_ms() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (((uint64_t)tv.tv_sec) * 1000) + (tv.tv_usec / 1000);
 }

@@ -18,6 +18,7 @@
         "string_view": "cpp",
         "unordered_map": "cpp",
         "__locale": "c",
-        "optional": "c"
+        "optional": "c",
+        "pretty-poly.h": "c"
     }
 }

@@ -6,15 +6,20 @@
 // An easy way to render high quality text in embedded applications running 
 // on resource constrained microcontrollers such as the Cortex M0 and up.         
 //
-//   - renders polygons: concave, self-intersecting, multi contour, holes, etc.
+//   - Renders polygons: concave, self-intersecting, multi contour, holes, etc.
 //   - C17 header only library: simply copy the header file into your project
-//   - tile based renderer: low memory footprint, cache coherency
-//   - low memory usage: ~4kB of heap memory required
-//   - high speed on low resource platforms: optionally no floating point
-//   - antialiasing modes: X1 (none), X4 and X16 super sampling
-//   - bounds clipping: all results clipped to supplied clip rectangle
-//   - pixel format agnostic: renders a "tile" to blend into your framebuffer
-//   - support for hardware interpolators on rp2040 (thanks @MichaelBell!)
+//   - Tile based renderer: low memory footprint, cache coherency
+//   - Low memory usage: ~4kB of heap memory required
+//   - High speed on low resource platforms: optionally no floating point
+//   - Antialiasing modes: X1 (none), X4 and X16 super sampling
+//   - Bounds clipping: all results clipped to supplied clip rectangle
+//   - Pixel format agnostic: renders a "tile" to blend into your framebuffer
+//   - Support for hardware interpolators on rp2040 (thanks @MichaelBell!)
+//
+// Contributor bwaaaaaarks! 🦜
+//
+//   @MichaelBell - lots of bug fixes, performance boosts, and suggestions. 
+//   @gadgetoid - integrating into the PicoVector library and testing.
 
 #pragma once
 
@@ -27,12 +32,16 @@
 #define PP_COORD_TYPE float
 #endif
 
-#ifndef PP_MAX_INTERSECTIONS
-#define PP_MAX_INTERSECTIONS 16
+#ifndef PP_NODE_BUFFER_HEIGHT
+#define PP_NODE_BUFFER_HEIGHT 64
+#endif
+
+#ifndef PP_MAX_NODES_PER_SCANLINE
+#define PP_MAX_NODES_PER_SCANLINE 16
 #endif
 
 #ifndef PP_TILE_BUFFER_SIZE
-#define PP_TILE_BUFFER_SIZE 1024
+#define PP_TILE_BUFFER_SIZE 4096
 #endif
 
 #if defined(PICO_ON_DEVICE) && PICO_ON_DEVICE
@@ -46,6 +55,10 @@
 #define debug(...)
 #endif
 
+int     _pp_max(int32_t a, int32_t b) { return a > b ? a : b; }
+int     _pp_min(int32_t a, int32_t b) { return a < b ? a : b; }
+int32_t _pp_sign(int32_t v) {return ((uint32_t)-v >> 31) - ((uint32_t)v >> 31);}
+void    _pp_swap(int32_t *a, int32_t *b) {int32_t t = *a; *a = *b; *b = t;}
 
 #ifdef __cplusplus
 extern "C" {
@@ -117,12 +130,6 @@ static void pp_transform(pp_mat3_t *transform);
 #ifdef __cplusplus
 }
 #endif
-
-// helpers
-int     _pp_max(int32_t a, int32_t b) { return a > b ? a : b; }
-int     _pp_min(int32_t a, int32_t b) { return a < b ? a : b; }
-int32_t _pp_sign(int32_t v) {return ((uint32_t)-v >> 31) - ((uint32_t)v >> 31);}
-void    _pp_swap(int32_t *a, int32_t *b) {int32_t t = *a; *a = *b; *b = t;}
 
 // pp_mat3_t implementation
 static pp_mat3_t pp_mat3_identity() {
@@ -214,8 +221,8 @@ pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m) {
 }
 
 // pp_tile_t implementation
-int pp_tile_get_value(const pp_tile_t *tile, const int x, const int y) {
-  return tile->data[x + y * tile->stride] * (255 >> _pp_antialias >> _pp_antialias);
+uint8_t pp_tile_get_value(const pp_tile_t *tile, const int32_t x, const int32_t y) {
+  return tile->data[(x - tile->x) + (y - tile->y) * tile->stride] * (255 >> _pp_antialias >> _pp_antialias);
 }
 
 // pp_contour_t implementation
@@ -248,9 +255,8 @@ uint8_t tile_buffer[tile_buffer_size + 1];
 
 // polygon node buffer handles at most 16 line intersections per scanline
 // is this enough for cjk/emoji? (requires a 2kB buffer)
-const uint32_t node_buffer_size = PP_MAX_INTERSECTIONS * 2;
-int32_t nodes[node_buffer_size][PP_MAX_INTERSECTIONS * 2];
-uint32_t node_counts[node_buffer_size];
+int32_t nodes[PP_NODE_BUFFER_HEIGHT][PP_MAX_NODES_PER_SCANLINE * 2];
+uint32_t node_counts[PP_NODE_BUFFER_HEIGHT];
 
 
 void pp_clip(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
@@ -266,7 +272,7 @@ int32_t _pp_tile_width, _pp_tile_height;
 void pp_antialias(pp_antialias_t antialias) {
   _pp_antialias = antialias;
   // recalculate the tile size for rendering based on antialiasing level
-  _pp_tile_height = node_buffer_size >> _pp_antialias;
+  _pp_tile_height = PP_NODE_BUFFER_HEIGHT >> _pp_antialias;
   _pp_tile_width = (int)(tile_buffer_size / _pp_tile_height);
 }
 
@@ -302,13 +308,13 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
   }
 
   // Early out if line is completely outside the tile, or has no lines
-  if (ey < 0 || sy >= (int)node_buffer_size || sy == ey) return;
+  if (ey < 0 || sy >= (int)PP_NODE_BUFFER_HEIGHT || sy == ey) return;
 
   debug("      + line segment from %d, %d to %d, %d\n", sx, sy, ex, ey);
 
   // Determine how many in-bounds lines to render
   int y = _pp_max(0, sy);
-  int count = _pp_min((int)node_buffer_size, ey) - y;
+  int count = _pp_min((int)PP_NODE_BUFFER_HEIGHT, ey) - y;
 
   // Handle cases where x is completely off to one side or other
   if (_pp_max(sx, ex) <= 0) {
@@ -441,7 +447,7 @@ pp_rect_t render_nodes(uint8_t *buffer, pp_rect_t *tb) {
   PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
   int anitialias_mask = (1 << _pp_antialias) - 1;
 
-  for(uint32_t y = 0; y < node_buffer_size; y++) {
+  for(uint32_t y = 0; y < PP_NODE_BUFFER_HEIGHT; y++) {
     if(node_counts[y] == 0) {
       if (y == rb.y) ++rb.y;
       continue;

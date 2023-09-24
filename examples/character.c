@@ -15,12 +15,12 @@ void set_pen(colour c) {
   pen = c;
 }
 
-void tile_render_callback(const pp_tile_t *t) {
-  for(int32_t y = 0; y < t->h; y++) {
-    for(int32_t x = 0; x < t->w; x++) {     
+void tile_render_callback(const pp_tile_t *tile) {
+  for(int32_t y = 0; y < tile->h; y++) {
+    for(int32_t x = 0; x < tile->w; x++) {     
       colour alpha_pen = pen;
-      alpha_pen.rgba.a = alpha(pen.rgba.a, pp_tile_get_value(t, x, y));
-      buffer[y + t->y][x + t->x] = blend(buffer[y + t->y][x + t->x], alpha_pen);
+      alpha_pen.rgba.a = alpha(pen.rgba.a, pp_tile_get_value(tile, x, y));
+      buffer[y + tile->y][x + tile->x] = blend(buffer[y + tile->y][x + tile->x], alpha_pen);
     }
   }
 }
