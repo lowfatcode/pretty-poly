@@ -1,4 +1,3 @@
 add_executable(
   character
-  character.cpp
-)
+  character.c)
