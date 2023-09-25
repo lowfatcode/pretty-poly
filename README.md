@@ -5,17 +5,21 @@
 - [Why?](#why)
 - [Approach](#approach)
 - [Using Pretty Poly](#using-pretty-poly)
-  - [Primitive shapes](#primitive-shapes)
   - [Defining your polygons](#defining-your-polygons)
+  - [Primitive shapes](#primitive-shapes)
   - [Clipping](#clipping)
   - [Antialiasing](#antialiasing)
   - [Transformations](#transformations)
   - [Rendering](#rendering)
   - [Implementing the tile renderer callback](#implementing-the-tile-renderer-callback)
 - [Types](#types)
-  - [`tile_callback_t`](#tile_callback_t)
+  - [`pp_tile_callback_t`](#pp_tile_callback_t)
   - [`pp_tile_t`](#pp_tile_t)
-  - [`rect_t`](#rect_t)
+  - [`pp_point_t`](#pp_point_t)
+  - [`pp_path_t`](#pp_path_t)
+  - [`pp_poly_t`](#pp_poly_t)
+  - [`pp_rect_t`](#pp_rect_t)
+  - [`pp_mat3_t`](#pp_mat3_t)
   - [`pp_antialias_t`](#pp_antialias_t)
 - [Performance considerations](#performance-considerations)
   - [CPU speed](#cpu-speed)
@@ -23,7 +27,6 @@
   - [Coordinate type](#coordinate-type)
   - [Tile size](#tile-size)
 - [Memory usage](#memory-usage)
-
 
 ## Why?
 
@@ -35,16 +38,12 @@ display pitches.
 
 > Fun fact: The Pretty Poly logo above is rendered by Pretty Poly! It is a 
 > single polygon with eleven contours: the outline and ten holes making up the 
-> lettering.
+> lettering - checkout `examples/logo.c` to see how!
 
 Microcontrollers are now powerful enough to perform the extra processing needed 
 for super-sampling in realtime allowing high quality vector graphics, including 
 text, on relatively low dot pitch displays like LED matrices and small LCD 
 screens.
-
-> Pretty Poly was originally part of  
-> [Alright Fonts](https://github.com/lowfatcode/alright-fonts) but has many 
-> other potential uses so is broken out and can be used separately.
 
 Pretty Poly provides an antialiased, pixel format agnostic, complex polygon 
 drawing engine designed specifically for use on resource-constrained 
@@ -97,56 +96,47 @@ int main() {
   // set the clip rectangle
   pp_clip((pp_rect_t){.x = 0, .y = 0, .w = WIDTH, .h = HEIGHT});
 
-  // outline contour of letter "a" in Roboto Black
-  pp_point_t a_outer[] = { // outline contour
-    {36, 0}, {34, -5}, {21, 1}, {16, 0}, {8, -4}, {2, -16}, {6, -24}, 
-    {15, -31}, {28, -34}, {34, -34}, {34, 37}, {27, -44}, {21, -38}, {4, -38}, 
-    {4, -41}, {11, -47}, {21, -51}, {33, -51}, {43, -47}, {51, -37}, {51, -13}, 
-    {53, -1}, {53, 0}
+  // create a 256 x 256 square centered around 0, 0 with a 128 x 128 hole
+  pp_point_t outline[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
+  pp_point_t hole[]    = {{ -64,   64}, { 64,   64}, { 64, -64}, { -64, -64}};
+  pp_path_t paths[] = {
+    {.points = outline, .point_count = 4},
+    {.points = hole,    .point_count = 4}
   };
-
-  // outline of hole in letter "a" in Roboto Black
-  pp_point_t a_inner[] = { // outline contour
-    {25, -11}, {34, -16}, {34, -25}, {29, -25}, {24, -24}, {20, -17}
-  });
-
-  // create contours
-  pp_contour_t a_contours[] = {
-    {.points = a_outer, .point_count = sizeof(a_outer) / sizeof(pp_point_t)},
-    {.points = a_inner, .point_count = sizeof(a_inner) / sizeof(pp_point_t)}
-  };
-
-  // create the multi contour polygon
-  pp_polygon_t a_polygon = {
-    .contours = a_contours, 
-    .contour_count = sizeof(a_contours) / sizeof(pp_contour_t)
-  };
+  pp_poly_t poly = {.paths = paths, .path_count = 2};
 
   // draw the polygon
-  draw_polygon(a_polygon);
+  pp_render(&poly);
 
   return 0;
 }
 ```
 
-### Primitive shapes
-
-
 ### Defining your polygons
 
-Polygons are made up contours which are made up of points.
+A polygon is constructed using one or more distinct paths. These paths have two key roles: they either sketch out the external perimeter of the polygon (points in clockwise order), or they delineate empty spaces within it, which are often referred to as holes (anti-clockwise).
+
+Each path consists of a series of points that form a closed figure. Implicitly, the final point is connected back to the initial one to complete the shape.
+
+For example:
 
 ```c
   // other setup code here...
-  // define a square polygon and render it
-  pp_point_t points[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
-  pp_contour_t contour = {.points = &points, .point_count = 4};
-  pp_polygon_t polygon = {.contours = &contour, .contour_count = 1};
-  pp_render(&polygon);
 
+  // create a 256 x 256 square centered around 0, 0 with a 128 x 128 hole
+  pp_point_t outline[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
+  pp_point_t hole[]    = {{ -64,   64}, { 64,   64}, { 64, -64}, { -64, -64}};
+  pp_path_t paths[] = {
+    {.points = outline, .point_count = 4},
+    {.points = hole,    .point_count = 4}
+  };
+  pp_poly_t poly = {.paths = paths, .path_count = 2};
+  pp_render(&poly);
 ```
 
-TODO: expand on this a lot...
+### Primitive shapes
+
+
 
 ### Clipping
 
@@ -167,9 +157,6 @@ One of the most interesting features of Pretty Poly is the ability of its
 rasteriser to antialias (AKA super-sample) the output - this is achieved by
 rendering the polygon at a larger scale and then counting how many pixels
 within each sampling area fall inside or outside of the polygon.
-
-Antialiasing can have a big effect on performance since the rasteriser has to 
-draw polygons either 4 or 16 times larger to achieve its sampling.
 
 The supported antialiasing levels are:
 
@@ -254,32 +241,31 @@ antialiasing used.
   
 ### Implementing the tile renderer callback
 
-Your tile renderer callback function will be passed a const reference to a 
-[`tile_t`](#tile_t) object which contains all of the information needed to 
-blend thetile with your framebuffer.
+Your tile renderer callback function will be passed a const pointer to a 
+[`pp_tile_t`](#pp_tile_t) object which contains all of the information needed
+to blend the rendered tile into your framebuffer.
 
-```c++
-void my_callback(const tile_t &tile) {
+```c
+void tile_blend_callback(const pp_tile_t *tile) {
   // process the tile image data here
 }
 ```
 
-> `tile_t` bounds are in framebuffer coordinate space and will always be 
+> `pp_tile_t` bounds are in framebuffer coordinate space and will always be 
 > clipped against your supplied clip rectangle so it is not necessary for you 
-> to check bounds again when rendering.
+> to do bounds checking again when rendering.
 
-The `w` and `h` properties represent the valid part of the tile data. This is 
-not necessarily the full size of the tiles used by the renderer. For example 
-if you draw a very small polygon it may only occupy a portion of the tile, or 
-if a tile is clipped against your supplied clip rectangle it will only contain 
-partial data.
+The `x` and `y` properties contain the offset within the framebuffer where
+this tile needs to be blended (i.e. the top left corner). 
 
-> You must only ever process and draw the data in the tile starting at `0, 0` 
-> in the upper-left corner and ending at `w, h` in the lower-right corner.
+Each tile returned by the renderer can be a different size depending on the
+size and shape of the polygon and your supplied clipping rectangle. You need
+to use the `w` and `h` properties to determine the area of the framebuffer
+this tile covers.
 
 There are two main approaches to implementing your callback function.
 
-**1\. Using `get_value()` - the slower, easier, option**
+**1\. Using `pp_tile_get(t, x, y)` - the slower, easier, option**
 
 Pretty Poly provides a simple way to get the value of a specific coordinate of 
 the tile.
@@ -289,25 +275,25 @@ between `0` and `255` - this is slower that reading the tile data directly
 (since we need a function call per pixel) but can be helpful to get up and 
 running more quickly.
 
-```c++
-void callback(const tile_t &tile) {
-  for(auto y = 0; y < tile.h; y++) {
-    for(auto x = 0; x < tile.w; x++) {      
-      // call your blend function
-      blend(framebuffer, tile.x + x, tile.y + y, tile.get_value(x, y), colour);
+```c
+void callback(const pp_tile_t *t) {
+  for(int y = t->y; y < t->y + t->h; y++) {
+    for(int x = t->x; x < t->x + t->w; x++) {      
+      uint8_t alpha = pp_tile_get(t, x, y);
+      // call your blend function here      
     }
   }
 }
 ```
 
 If this is fast enough for your usecase then congratulations! 🥳 You have just 
-saved future you from some debugging 🤦.
+saved future you from some debugging... 🤦
 
-**2\. Using `tile_t.data` directly - much faster, but more complicated**
+**2\. Using `pp_tile_t.data` directly - much faster, but more complicated**
 
-With the faster implementation you need to handle the raw tile data. This is a 
-lot faster than using the `get_value()` helper function as it avoids making a 
-function call for every pixel.
+With this approach you need to handle the raw tile data. This is a lot faster 
+than using the `pp_tile_get()` helper function as it avoids making a function 
+call for every pixel.
 
 You can also potentially optimise in other ways:
 
@@ -322,43 +308,37 @@ Here we assume we're using X4 supersampling - this is not intended to show the
 fastest possible implementation but rather one that's relatively 
 straightforward to understand.
 
-```c++
-void callback(const tile_t &tile) {
-  // map to convert sampling results to alpha values used by our blend function
-  static uint8_t alpha_map[5] = {0, 64, 128, 192, 255};
-
+```c
+void callback(const pp_tile_t *t) {
   // pointer to start of tile data
-  uint8_t *p = tile.data;
+  uint8_t *p = t->data;
 
   // iterate over the valid portion of tile data
-  for(auto y = 0; y < tile.h; y++) {
-    for(auto x = 0; x < tile.w; x++) {
-      // get value, map to alpha, and advance data pointer
-      uint8_t value = alpha_map[*p++];
-
-      // blend pixel to your framebuffer
-      blend(framebuffer, tile.x + x, tile.y + y, value, colour);
+  for(int y = t->y; y < t->y + t->h; y++) {
+    for(int x = t->x; x < t->x + t->w; x++) {           
+      uint8_t alpha = *p++;
+      // call your blend function here      
     }
 
-    // advance to start of next row
-    p += tile.stride - tile.w;
+    // advance to start of next row of tile data
+    p += t->stride - t->w;
   }
 }
 ```
 ## Types
 
-### `tile_callback_t`
+### `pp_tile_callback_t`
 
 Callback function prototype.
 
-```c++
+```c
 typedef void (*pp_tile_callback_t)(const pp_tile_t *tile);
 ```
 
 Create your own matching callback function to supply to `pp_tile_callback()` - 
 for example:
 
-```c++
+```c
 void tile_render_callback(const pp_tile_t *tile) {
     // perform your framebuffer blending here
 }
@@ -371,55 +351,103 @@ interp1 it must save and restore the state.
 
 Information needed to blend a rendered tile into your framebuffer.
 
-```c++
-  struct tile_t {
+```c
+  struct pp_tile_t {
     int32_t x, y, w, h;  // bounds of tile in framebuffer coordinates
     uint32_t stride;     // row stride of tile data
     uint8_t *data;       // pointer to start of mask data
   };
+
+  uint8_t pp_tile_get(const pp_tile_t *tile, const int32_t x, const int32_t y);
 ```
 
 This object is passed into your callback function for each tile providing the 
 area of the framebuffer to write to with the mask data needed for blending.
 
-`uint8_t pp_tile_get_value(pp_tile_t *tile, int32_t x, int32_t y)`
-`
+`uint8_t pp_tile_get(pp_tile_t *tile, int32_t x, int32_t y)`
 
-Returns the value in the tile at `x`, `y `
+Returns the value in the tile at `x`, `y`.
 
-### `rect_t`
+### `pp_point_t`
+
+Defines a coordinate in a polygon path.
+
+```c
+  typedef struct __attribute__((__packed__)) {
+    PP_COORD_TYPE x, y;
+  } pp_point_t;
+
+  pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2);
+  pp_point_t pp_point_sub(pp_point_t *p1, pp_point_t *p2);
+  pp_point_t pp_point_mul(pp_point_t *p1, pp_point_t *p2);
+  pp_point_t pp_point_div(pp_point_t *p1, pp_point_t *p2);
+  pp_point_t pp_point_transform(pp_point_t *p, pp_mat3_t *m);
+```
+
+### `pp_path_t`
+
+```c
+typedef struct {
+  pp_point_t *points;
+  uint32_t count;
+} pp_path_t;
+```
+
+### `pp_poly_t`
+
+```c
+typedef struct {
+  pp_path_t *paths;
+  uint32_t count;
+} pp_poly_t;
+```
+
+### `pp_rect_t`
 
 Defines a rectangle with a top left corner, width, and height.
 
-```c++
-  struct pp_rect_t {
-    int x; // left
-    int y; // top
-    int w; // width
-    int h; // height
+```c
+  typedef struct {
+    int32_t x, y, w, h;
+  } pp_rect_t;
 
-    rect_t()
-    rect_t(int x, int y, int w, int h);
-
-    bool empty();
-    rect_t intersection(const rect_t &c);
-    rect_t merge(const rect_t &c);
-  };
+  bool pp_rect_empty(pp_rect_t *r);
+  pp_rect_t pp_rect_intersection(pp_rect_t *r1, pp_rect_t *r2);
+  pp_rect_t pp_rect_merge(pp_rect_t *r1, pp_rect_t *r2);
+  pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m);
 ```
 
 Used to define clipping rectangle and tile bounds.
+
+### `pp_mat3_t`
+
+3x3 matrix type for defining 2D transforms.
+
+```c
+  typedef struct {
+    float v00, v10, v20, v01, v11, v21, v02, v12, v22;
+  } pp_mat3_t;
+
+  pp_mat3_t pp_mat3_identity();
+  void pp_mat3_rotate(pp_mat3_t *m, float a);
+  void pp_mat3_rotate_rad(pp_mat3_t *m, float a);
+  void pp_mat3_translate(pp_mat3_t *m, float x, float y);
+  void pp_mat3_scale(pp_mat3_t *m, float x, float y);
+  void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2);
+```
 
 ### `pp_antialias_t`
 
 Enumeration of valid anti-aliasing modes.
 
-```c++
+```c
 enum antialias_t {
   PP_AA_NONE = 0, // no antialiasing
   PP_AA_X4   = 1, // 4x super sampling (2x2 grid)
   PP_AA_X16  = 2  // 16x super sampling (4x4 grid)
 };
 ```
+
 ## Performance considerations
 
 ### CPU speed
@@ -436,7 +464,8 @@ surprisingly smooth animation of complex shapes in realtime.
 
 ### Antialiasing
 
-
+Antialiasing can have a big effect on performance since the rasteriser has to 
+draw polygons either 4 or 16 times larger to achieve its sampling.
 
 ### Coordinate type
 

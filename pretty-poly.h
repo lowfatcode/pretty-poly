@@ -56,10 +56,10 @@
 #define debug(...)
 #endif
 
-int     _pp_max(int32_t a, int32_t b) { return a > b ? a : b; }
-int     _pp_min(int32_t a, int32_t b) { return a < b ? a : b; }
-int32_t _pp_sign(int32_t v) {return ((uint32_t)-v >> 31) - ((uint32_t)v >> 31);}
-void    _pp_swap(int32_t *a, int32_t *b) {int32_t t = *a; *a = *b; *b = t;}
+int     _pp_max(int a, int b) { return a > b ? a : b; }
+int     _pp_min(int a, int b) { return a < b ? a : b; }
+int     _pp_sign(int v) {return (v > 0) - (v < 0);}
+void    _pp_swap(int *a, int *b) {int t = *a; *a = *b; *b = t;}
 
 #ifdef __cplusplus
 extern "C" {
@@ -106,13 +106,13 @@ typedef struct {
 
 typedef struct {
   pp_point_t *points;
-  uint32_t point_count;
-} pp_contour_t;
+  uint32_t count;
+} pp_path_t;
 
 typedef struct {
-  pp_contour_t *contours;
-  uint32_t contour_count;
-} pp_polygon_t;
+  pp_path_t *paths;
+  uint32_t count;
+} pp_poly_t;
 
 // user settings
 typedef void (*pp_tile_callback_t)(const pp_tile_t *tile);
@@ -227,10 +227,10 @@ uint8_t pp_tile_get(const pp_tile_t *tile, const int32_t x, const int32_t y) {
 }
 
 // pp_contour_t implementation
-pp_rect_t pp_contour_bounds(const pp_contour_t *c) {
+pp_rect_t pp_contour_bounds(const pp_path_t *c) {
   int minx = c->points[0].x, maxx = minx;
   int miny = c->points[0].y, maxy = miny;
-  for(uint32_t i = 1; i < c->point_count; i++) {
+  for(uint32_t i = 1; i < c->count; i++) {
     minx = _pp_min(minx, c->points[i].x);
     miny = _pp_min(miny, c->points[i].y);
     maxx = _pp_max(maxx, c->points[i].x); 
@@ -239,11 +239,11 @@ pp_rect_t pp_contour_bounds(const pp_contour_t *c) {
   return (pp_rect_t){.x = minx, .y = miny, .w = maxx - minx, .h = maxy - miny};
 }
 
-pp_rect_t pp_polygon_bounds(pp_polygon_t *p) {
-  if(p->contour_count == 0) {return (pp_rect_t){};}
-  pp_rect_t b = pp_contour_bounds(&p->contours[0]);
-  for(uint32_t i = 1; i < p->contour_count; i++) {
-    pp_rect_t cb = pp_contour_bounds(&p->contours[i]);
+pp_rect_t pp_polygon_bounds(pp_poly_t *p) {
+  if(p->count == 0) {return (pp_rect_t){};}
+  pp_rect_t b = pp_contour_bounds(&p->paths[0]);
+  for(uint32_t i = 1; i < p->count; i++) {
+    pp_rect_t cb = pp_contour_bounds(&p->paths[i]);
     b = pp_rect_merge(&b, &cb);
   }
   return b;
@@ -281,16 +281,13 @@ void pp_transform(pp_mat3_t *transform) {
   _pp_transform = transform;
 }
 
-
-
-
 // write out the tile bits
 void debug_tile(const pp_tile_t *tile) {
   debug("  - tile %d, %d (%d x %d)\n", tile->x, tile->y, tile->w, tile->h);
   for(int32_t y = 0; y < tile->h; y++) {
     debug("[%3d]: ", y);
     for(int32_t x = 0; x < tile->w; x++) {
-      debug("%02x", pp_tile_get_value(tile, x, y));
+      debug("%02x", pp_tile_get(tile, x, y));
     }  
     debug("\n");              
   }
@@ -390,7 +387,7 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
 #endif
 }
 
-void build_nodes(pp_contour_t *contour, pp_rect_t *bounds) {
+void build_nodes(pp_path_t *contour, pp_rect_t *bounds) {
   PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
 
   pp_point_t tile_origin = (pp_point_t) {
@@ -400,8 +397,8 @@ void build_nodes(pp_contour_t *contour, pp_rect_t *bounds) {
 
   // start with the last point to close the loop
   pp_point_t last = {
-    .x = (contour->points[contour->point_count - 1].x),
-    .y = (contour->points[contour->point_count - 1].y)
+    .x = (contour->points[contour->count - 1].x),
+    .y = (contour->points[contour->count - 1].y)
   };
 
   if(_pp_transform) {
@@ -413,7 +410,7 @@ void build_nodes(pp_contour_t *contour, pp_rect_t *bounds) {
 
   last = pp_point_sub(&last, &tile_origin);
 
-  for(uint32_t i = 0; i < contour->point_count; i++) {
+  for(uint32_t i = 0; i < contour->count; i++) {
     pp_point_t point = {
       .x = (contour->points[i].x),
       .y = (contour->points[i].y)
@@ -517,11 +514,11 @@ pp_rect_t render_nodes(uint8_t *buffer, pp_rect_t *tb) {
   return rb;
 }
 
-void pp_render(pp_polygon_t *polygon) {
+void pp_render(pp_poly_t *polygon) {
 
-  debug("> draw polygon with %u contours\n", polygon->contour_count);
+  debug("> draw polygon with %u contours\n", polygon->count);
 
-  if(polygon->contour_count == 0) {
+  if(polygon->count == 0) {
     return;
   }
 
@@ -561,11 +558,11 @@ void pp_render(pp_polygon_t *polygon) {
       memset(node_counts, 0, sizeof(node_counts));
       memset(tile_buffer, 0, tile_buffer_size);
 
-      // build the nodes for each contour
-      for(uint32_t i = 0; i < polygon->contour_count; i++) {
-        pp_contour_t contour = polygon->contours[i];
-        debug("    : build nodes for contour\n");
-        build_nodes(&contour, &tb);
+      // build the nodes for each pp_path_t
+      for(uint32_t i = 0; i < polygon->count; i++) {
+        pp_path_t pp_path_t = polygon->paths[i];
+        debug("    : build nodes for path\n");
+        build_nodes(&pp_path_t, &tb);
       }
 
       debug("    : render the tile\n");

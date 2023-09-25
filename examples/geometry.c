@@ -23,6 +23,8 @@ void blend_tile(const pp_tile_t *t) {
   }
 }
 
+
+
 int main() {
   //(callback, PP_AA_X4, {0, 0, WIDTH, HEIGHT});
   
@@ -36,37 +38,34 @@ int main() {
     }
   }
 
-  pp_point_t points[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
-
-  pp_contour_t contour = {
-    .points = &points, 
-    .point_count = 4
+  // create a 256 x 256 square centered around 0, 0 with a 128 x 128 hole
+  pp_point_t outline[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
+  pp_point_t hole[]    = {{ -64,   64}, { 64,   64}, { 64, -64}, { -64, -64}};
+  pp_path_t paths[] = {
+    {.points = outline, .count = 4},
+    {.points = hole,    .count = 4}
   };
+  pp_poly_t poly = {.paths = paths, .count = 2};
+  pp_render(&poly);
 
-  pp_polygon_t polygon = {
-    .contours = &contour,
-    .contour_count = 1
-  };
 
-  pp_render(&polygon);
-  
-  for(int i = 0; i < 1000; i += 10) {
+  for(int i = 0; i < 1000; i += 30) {
     pp_mat3_t t = pp_mat3_identity();
 
     float tx = sin((float)i / 100.0f) * (float)i / 3.0f;
     float ty = cos((float)i / 100.0f) * (float)i / 3.0f;
+    float scale = (float)i / 1000.0f;
     pp_mat3_translate(&t, 512 + tx, 512 + ty);
     pp_mat3_rotate(&t, i);
-    float scale = (float)i / 1000.0f;
     pp_mat3_scale(&t, scale, scale);
     pp_transform(&t);
 
     float hue = (float)i / 1000.0f;
-    set_pen(create_colour_hsv(hue, 1.0f, 1.0f, 0.1f));
+    set_pen(create_colour_hsv(hue, 1.0f, 1.0f, 0.5f));
 
-
-    pp_render(&polygon);
+    pp_render(&poly);
   }
+
 
   stbi_write_png("/tmp/out.png", WIDTH, HEIGHT, 4, (void *)buffer, WIDTH * sizeof(uint32_t));
   
