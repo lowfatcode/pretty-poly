@@ -1,6 +1,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#define PP_IMPLEMENTATION
 #include "pretty-poly.h"
 #include "helpers.h"
 
