@@ -122,6 +122,7 @@ void pp_clip(int32_t x, int32_t y, int32_t w, int32_t h);
 void pp_tile_callback(pp_tile_callback_t callback);
 void pp_antialias(pp_antialias_t antialias);
 void pp_transform(pp_mat3_t *transform);
+void pp_render(pp_poly_t *polygon);
 
 #ifdef __cplusplus
 }
