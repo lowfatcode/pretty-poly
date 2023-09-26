@@ -24,8 +24,6 @@ __attribute__((always_inline)) uint8_t blend_channel(uint8_t s, uint8_t d, uint8
 
 colour blend(colour dest, colour src) {
 
-  uint16_t a = alpha(src.rgba.a, dest.rgba.a);
-
   if(src.rgba.a == 0) return dest;
   if(src.rgba.a == 255) return src;
 

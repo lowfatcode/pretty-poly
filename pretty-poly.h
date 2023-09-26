@@ -277,7 +277,7 @@ void pp_tile_callback(pp_tile_callback_t callback) {
 }
 
 // maximum tile bounds determined by antialias level
-int32_t _pp_tile_width, _pp_tile_height;
+uint32_t _pp_tile_width, _pp_tile_height;
 void pp_antialias(pp_antialias_t antialias) {
   _pp_antialias = antialias;
   // recalculate the tile size for rendering based on antialiasing level
@@ -453,7 +453,7 @@ pp_rect_t render_nodes(uint8_t *buffer, pp_rect_t *tb) {
   PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
   int anitialias_mask = (1 << _pp_antialias) - 1;
 
-  for(uint32_t y = 0; y < PP_NODE_BUFFER_HEIGHT; y++) {
+  for(int32_t y = 0; y < PP_NODE_BUFFER_HEIGHT; y++) {
     if(node_counts[y] == 0) {
       if (y == rb.y) ++rb.y;
       continue;
