@@ -30,45 +30,51 @@
 
 ## Why?
 
-Microcontrollers generally can't drive very high resolution displays (beyond 
-320x240 or so) because they lack the high speed peripherals and rarely have 
-enough memory to store such a large framebuffer. Super-samplaing (AKA 
-anti-aliasing) is a tool that can provide a huge quality boost at these lower 
-display pitches.
+Generally, microcontrollers struggle to support high-resolution displays. 
+This limitation arises from their lack of high-speed peripherals and 
+insufficient memory to house a large framebuffer. 
 
-> Fun fact: The Pretty Poly logo above is rendered by Pretty Poly! It is a 
-> single polygon with eleven contours: the outline and ten holes making up the 
-> lettering - checkout `examples/logo.c` to see how!
+However, today's microcontrollers possess the processing muscle to execute 
+real-time anti-aliasing, thereby enabling high-quality vector graphics and text 
+on displays with relatively low dot pitch.
 
-Microcontrollers are now powerful enough to perform the extra processing needed 
-for super-sampling in realtime allowing high quality vector graphics, including 
-text, on relatively low dot pitch displays like LED matrices and small LCD 
-screens.
+> The logo you see above is crafted by Pretty Poly! It consists of a single 
+> polygon featuring eleven contours: one for the outline and ten more for the 
+> lettering's holes. To see how it's done, take a look at examples/logo.c!
 
-Pretty Poly provides an antialiased, pixel format agnostic, complex polygon 
-drawing engine designed specifically for use on resource-constrained 
-microcontrollers.
+Your hardware project doesn't have to look like a relic from the '80s 
+anymore - unless that's the vibe you're going for. In which case, you can 
+effortlessly recreate that retro aesthetic even better than the real thing!
+
+Pretty Poly offers a pixel-format-agnostic, anti-aliased complex polygon 
+drawing engine, specifically engineered for optimal performance on 
+resource-limited microcontrollers.
 
 ## Approach
 
-Pretty Poly is a tile-based renderer that calls back into your code with each 
-tile of output so that it can be blended into your framebuffer.
+To optimize memory usage, Pretty Poly utilizes a tile-based rendering 
+technique. This allows you to render intricate polygons with up to 16x 
+anti-aliasing, all while requiring just around 6kB of statically allocated 
+memory - ideal for many embedded projects.
 
-This allows Pretty Poly to use very little memory (around 4kB total, statically 
-allocated) and focus purely on drawing polygons without worrying about what the
-pixel format of the framebuffer is.
+Each tile is generated as an 8-bit mask image. This flexible approach allows 
+you to easily blend these mask images into your existing framebuffer, offering
+you greater control and compatibility with various display configurations.
 
 Features:
 
-- Renders polygons: concave, self-intersecting, multi contour, holes, etc.
-- C17 header only library: simply copy the header file into your project
-- Tile based renderer: low memory footprint, cache coherency
-- Low memory usage: A few kilobytes of heap memory required
-- High speed on low resource platforms: optionally no floating point
-- Antialiasing modes: X1 (none), X4 and X16 super sampling
-- Bounds clipping: all results clipped to supplied clip rectangle
-- Pixel format agnostic: renders a "tile" to blend into your framebuffer
-- Support for hardware interpolators on rp2040 (thanks @MichaelBell!)
+- **Renders polygons**: concave, self-intersecting, multi contour, holes, etc.
+- **C17 header only library**: simply copy the header file into your project
+- **Tile based renderer**: low memory footprint, cache coherency
+- **Low memory usage**: A few kilobytes of heap memory required
+- **High speed on low resource platforms**: optionally no floating point
+- **Antialiasing**: X1 (none), X4 and X16 super sampling supported
+- **Bounds clipping**: all results clipped to supplied clip rectangle
+- **Pixel format agnostic**: renders a "tile" to blend into your framebuffer
+- **RP2040 goodies**: hardware interpolators (thanks @MichaelBell!)
+
+It's a resource-efficient, high-quality polygon rendering solution specifically 
+tailored for microcontrollers.
 
 ## Using Pretty Poly
 

@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
@@ -56,11 +57,6 @@
 #define debug(...)
 #endif
 
-int     _pp_max(int a, int b) { return a > b ? a : b; }
-int     _pp_min(int a, int b) { return a < b ? a : b; }
-int     _pp_sign(int v) {return (v > 0) - (v < 0);}
-void    _pp_swap(int *a, int *b) {int t = *a; *a = *b; *b = t;}
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -69,31 +65,31 @@ extern "C" {
 typedef struct {
   float v00, v10, v20, v01, v11, v21, v02, v12, v22;
 } pp_mat3_t;
-static pp_mat3_t pp_mat3_identity();
-static void pp_mat3_rotate(pp_mat3_t *m, float a);
-static void pp_mat3_rotate_rad(pp_mat3_t *m, float a);
-static void pp_mat3_translate(pp_mat3_t *m, float x, float y);
-static void pp_mat3_scale(pp_mat3_t *m, float x, float y);
-static void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2);
+pp_mat3_t pp_mat3_identity();
+void pp_mat3_rotate(pp_mat3_t *m, float a);
+void pp_mat3_rotate_rad(pp_mat3_t *m, float a);
+void pp_mat3_translate(pp_mat3_t *m, float x, float y);
+void pp_mat3_scale(pp_mat3_t *m, float x, float y);
+void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2);
 
 // point type used to hold polygon vertex coordinates
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) pp_point_t {
   PP_COORD_TYPE x, y;
 } pp_point_t;
-static pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2);
-static pp_point_t pp_point_sub(pp_point_t *p1, pp_point_t *p2);
-static pp_point_t pp_point_mul(pp_point_t *p1, pp_point_t *p2);
-static pp_point_t pp_point_div(pp_point_t *p1, pp_point_t *p2);
-static pp_point_t pp_point_transform(pp_point_t *p, pp_mat3_t *m);
+pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2);
+pp_point_t pp_point_sub(pp_point_t *p1, pp_point_t *p2);
+pp_point_t pp_point_mul(pp_point_t *p1, pp_point_t *p2);
+pp_point_t pp_point_div(pp_point_t *p1, pp_point_t *p2);
+pp_point_t pp_point_transform(pp_point_t *p, pp_mat3_t *m);
 
 // rect type
 typedef struct {
   int32_t x, y, w, h;    
 } pp_rect_t;
 bool pp_rect_empty(pp_rect_t *r);
-static pp_rect_t pp_rect_intersection(pp_rect_t *r1, pp_rect_t *r2);
-static pp_rect_t pp_rect_merge(pp_rect_t *r1, pp_rect_t *r2);
-static pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m);
+pp_rect_t pp_rect_intersection(pp_rect_t *r1, pp_rect_t *r2);
+pp_rect_t pp_rect_merge(pp_rect_t *r1, pp_rect_t *r2);
+pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m);
 
 // antialias levels
 typedef enum {PP_AA_NONE = 0, PP_AA_X4 = 1, PP_AA_X16 = 2} pp_antialias_t;
@@ -117,34 +113,45 @@ typedef struct {
 // user settings
 typedef void (*pp_tile_callback_t)(const pp_tile_t *tile);
 
-pp_rect_t           _pp_clip;
-pp_tile_callback_t  _pp_tile_callback;
-pp_antialias_t      _pp_antialias;
-pp_mat3_t          *_pp_transform;
+extern pp_rect_t           _pp_clip;
+extern pp_tile_callback_t  _pp_tile_callback;
+extern pp_antialias_t      _pp_antialias;
+extern pp_mat3_t          *_pp_transform;
 
-
-static void pp_clip(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
-static void pp_tile_callback(pp_tile_callback_t callback);
-static void pp_antialias(pp_antialias_t antialias);
-static void pp_transform(pp_mat3_t *transform);
+void pp_clip(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+void pp_tile_callback(pp_tile_callback_t callback);
+void pp_antialias(pp_antialias_t antialias);
+void pp_transform(pp_mat3_t *transform);
 
 #ifdef __cplusplus
 }
 #endif
 
+#ifdef PP_IMPLEMENTATION
+
+pp_rect_t           _pp_clip = (pp_rect_t){0, 0, 320, 240};
+pp_tile_callback_t  _pp_tile_callback = NULL;
+pp_antialias_t      _pp_antialias = PP_AA_X4;
+pp_mat3_t          *_pp_transform = NULL;
+
+int     _pp_max(int a, int b) { return a > b ? a : b; }
+int     _pp_min(int a, int b) { return a < b ? a : b; }
+int     _pp_sign(int v) {return (v > 0) - (v < 0);}
+void    _pp_swap(int *a, int *b) {int t = *a; *a = *b; *b = t;}
+
 // pp_mat3_t implementation
-static pp_mat3_t pp_mat3_identity() {
+pp_mat3_t pp_mat3_identity() {
   pp_mat3_t m; memset(&m, 0, sizeof(pp_mat3_t)); m.v00 = m.v11 = m.v22 = 1.0f; return m;}
-static void pp_mat3_rotate(pp_mat3_t *m, float a) {
+void pp_mat3_rotate(pp_mat3_t *m, float a) {
   pp_mat3_rotate_rad(m, a * M_PI / 180.0f);}
-static void pp_mat3_rotate_rad(pp_mat3_t *m, float a) {
+void pp_mat3_rotate_rad(pp_mat3_t *m, float a) {
   float c = cosf(a), s = sinf(a); pp_mat3_t r = pp_mat3_identity();
   r.v00 = c; r.v01 = s; r.v10 = -s; r.v11 = c; pp_mat3_mul(m, &r); }
-static void pp_mat3_translate(pp_mat3_t *m, float x, float y) {
+void pp_mat3_translate(pp_mat3_t *m, float x, float y) {
   pp_mat3_t r = pp_mat3_identity(); r.v02 = x; r.v12 = y; pp_mat3_mul(m, &r);}
-static void pp_mat3_scale(pp_mat3_t *m, float x, float y) {
+void pp_mat3_scale(pp_mat3_t *m, float x, float y) {
   pp_mat3_t r = pp_mat3_identity(); r.v00 = x; r.v11 = y; pp_mat3_mul(m, &r);}
-static void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2) {
+void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2) {
   pp_mat3_t r;
   r.v00 = m1->v00 * m2->v00 + m1->v01 * m2->v10 + m1->v02 * m2->v20;
   r.v01 = m1->v00 * m2->v01 + m1->v01 * m2->v11 + m1->v02 * m2->v21;
@@ -159,19 +166,19 @@ static void pp_mat3_mul(pp_mat3_t *m1, pp_mat3_t *m2) {
 }
 
 // pp_point_t implementation
-static pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2) {
+pp_point_t pp_point_add(pp_point_t *p1, pp_point_t *p2) {
   return (pp_point_t){.x = p1->x + p2->x, .y = p1->y + p2->y};
 }
-static pp_point_t pp_point_sub(pp_point_t *p1, pp_point_t *p2) {
+pp_point_t pp_point_sub(pp_point_t *p1, pp_point_t *p2) {
   return (pp_point_t){.x = p1->x - p2->x, .y = p1->y - p2->y};
 }
-static pp_point_t pp_point_mul(pp_point_t *p1, pp_point_t *p2) {
+pp_point_t pp_point_mul(pp_point_t *p1, pp_point_t *p2) {
   return (pp_point_t){.x = p1->x * p2->x, .y = p1->y * p2->y};
 }
-static pp_point_t pp_point_div(pp_point_t *p1, pp_point_t *p2) {
+pp_point_t pp_point_div(pp_point_t *p1, pp_point_t *p2) {
   return (pp_point_t){.x = p1->x / p2->x, .y = p1->y / p2->y};
 }
-static pp_point_t pp_point_transform(pp_point_t *p, pp_mat3_t *m) {
+pp_point_t pp_point_transform(pp_point_t *p, pp_mat3_t *m) {
   return (pp_point_t){
     .x = (m->v00 * p->x + m->v01 * p->y + m->v02),
     .y = (m->v10 * p->x + m->v11 * p->y + m->v12)
@@ -589,3 +596,5 @@ void pp_render(pp_poly_t *polygon) {
   interp_restore(interp1, &interp1_save);
 #endif
 }
+
+#endif // PP_IMPLEMENTATION
