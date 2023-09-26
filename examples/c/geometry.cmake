@@ -1,3 +1,6 @@
 add_executable(
   geometry
-  geometry.c)
+  geometry.c
+)
+
+target_link_libraries(geometry m)

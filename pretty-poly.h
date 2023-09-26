@@ -260,7 +260,7 @@ pp_rect_t pp_polygon_bounds(pp_poly_t *p) {
 // buffer that each tile is rendered into before callback
 // allocate one extra byte to allow a small optimization in the row renderer
 const uint32_t tile_buffer_size = PP_TILE_BUFFER_SIZE;
-uint8_t tile_buffer[tile_buffer_size + 1];
+uint8_t tile_buffer[PP_TILE_BUFFER_SIZE + 1];
 
 // polygon node buffer handles at most 16 line intersections per scanline
 // is this enough for cjk/emoji? (requires a 2kB buffer)
