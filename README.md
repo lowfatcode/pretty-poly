@@ -88,7 +88,7 @@ A basic example might look like:
 ```c
 #include "pretty-poly.h"
 
-void callback(const tile_t tile) {
+void callback(const tile_t *tile) {
   // TODO: process the tile data here - see below for details
 }
 
@@ -100,16 +100,16 @@ int main() {
   pp_antialias(PP_AA_X4);
 
   // set the clip rectangle
-  pp_clip((pp_rect_t){.x = 0, .y = 0, .w = WIDTH, .h = HEIGHT});
+  pp_clip(0, 0, WIDTH, HEIGHT);
 
   // create a 256 x 256 square centered around 0, 0 with a 128 x 128 hole
   pp_point_t outline[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
   pp_point_t hole[]    = {{ -64,   64}, { 64,   64}, { 64, -64}, { -64, -64}};
   pp_path_t paths[] = {
-    {.points = outline, .point_count = 4},
-    {.points = hole,    .point_count = 4}
+    {.points = outline, .count = 4},
+    {.points = hole,    .count = 4}
   };
-  pp_poly_t poly = {.paths = paths, .path_count = 2};
+  pp_poly_t poly = {.paths = paths, .count = 2};
 
   // draw the polygon
   pp_render(&poly);
@@ -133,10 +133,10 @@ For example:
   pp_point_t outline[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
   pp_point_t hole[]    = {{ -64,   64}, { 64,   64}, { 64, -64}, { -64, -64}};
   pp_path_t paths[] = {
-    {.points = outline, .point_count = 4},
-    {.points = hole,    .point_count = 4}
+    {.points = outline, .count = 4},
+    {.points = hole,    .count = 4}
   };
-  pp_poly_t poly = {.paths = paths, .path_count = 2};
+  pp_poly_t poly = {.paths = paths, .count = 2};
   pp_render(&poly);
 ```
 
