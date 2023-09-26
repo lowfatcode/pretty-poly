@@ -453,7 +453,7 @@ pp_rect_t render_nodes(uint8_t *buffer, pp_rect_t *tb) {
   PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
   int anitialias_mask = (1 << _pp_antialias) - 1;
 
-  for(uint32_t y = 0; y < PP_NODE_BUFFER_HEIGHT; y++) {
+  for(int32_t y = 0; y < PP_NODE_BUFFER_HEIGHT; y++) {
     if(node_counts[y] == 0) {
       if (y == rb.y) ++rb.y;
       continue;
@@ -585,7 +585,7 @@ void pp_render(pp_poly_t *polygon) {
 
       pp_tile_t tile = {        
         .x = tb.x, .y = tb.y, .w = tb.w, .h = tb.h,
-        .stride = _pp_tile_width,
+        .stride = (uint32_t)_pp_tile_width,
         .data = tile_buffer + rb.x + _pp_tile_width * rb.y
       };
 
