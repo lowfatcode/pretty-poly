@@ -118,7 +118,7 @@ extern pp_tile_callback_t  _pp_tile_callback;
 extern pp_antialias_t      _pp_antialias;
 extern pp_mat3_t          *_pp_transform;
 
-void pp_clip(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+void pp_clip(int32_t x, int32_t y, int32_t w, int32_t h);
 void pp_tile_callback(pp_tile_callback_t callback);
 void pp_antialias(pp_antialias_t antialias);
 void pp_transform(pp_mat3_t *transform);
@@ -267,7 +267,7 @@ int32_t nodes[PP_NODE_BUFFER_HEIGHT][PP_MAX_NODES_PER_SCANLINE * 2];
 uint32_t node_counts[PP_NODE_BUFFER_HEIGHT];
 
 
-void pp_clip(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+void pp_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
   _pp_clip = (pp_rect_t){.x = x, .y = y, .w = w, .h = h};
 }
 
