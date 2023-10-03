@@ -1,28 +1,33 @@
-// Pretty Poly 🦜 - super-sampling polygon renderer for low resource platforms.
-//
-// Jonathan Williamson, August 2022
-// Examples, source, and more: https://github.com/lowfatcode/pretty-poly
-// MIT License https://github.com/lowfatcode/pretty-poly/blob/main/LICENSE
-// 
-// An easy way to render high quality text in embedded applications running 
-// on resource constrained microcontrollers such as the Cortex M0 and up.         
-//
-//   - Renders polygons: concave, self-intersecting, multi contour, holes, etc.
-//   - C17 header only library: simply copy the header file into your project
-//   - Tile based renderer: low memory footprint, cache coherency
-//   - Low memory usage: ~4kB of heap memory required
-//   - High speed on low resource platforms: optionally no floating point
-//   - Antialiasing modes: X1 (none), X4 and X16 super sampling
-//   - Bounds clipping: all results clipped to supplied clip rectangle
-//   - Pixel format agnostic: renders a "tile" to blend into your framebuffer
-//   - Support for hardware interpolators on rp2040 (thanks @MichaelBell!)
-//
-// Contributor bwaaaaaarks! 🦜
-//
-//   @MichaelBell - lots of bug fixes, performance boosts, and suggestions. 
-//   @gadgetoid - integrating into the PicoVector library and testing.
+/*
 
-#pragma once
+  Pretty Poly 🦜 - super-sampling polygon renderer for low resource platforms.
+
+  Jonathan Williamson, August 2022
+  Examples, source, and more: https://github.com/lowfatcode/pretty-poly
+  MIT License https://github.com/lowfatcode/pretty-poly/blob/main/LICENSE
+
+  An easy way to render high quality graphics in embedded applications running 
+  on resource constrained microcontrollers such as the Cortex M0 and up.         
+
+    - Renders polygons: concave, self-intersecting, multi contour, holes, etc.
+    - C11 header only library: simply copy the header file into your project
+    - Tile based renderer: low memory footprint, cache coherency
+    - Low memory usage: ~4kB of heap memory required
+    - High speed on low resource platforms: optionally no floating point
+    - Antialiasing modes: X1 (none), X4 and X16 super sampling
+    - Bounds clipping: all results clipped to supplied clip rectangle
+    - Pixel format agnostic: renders a "tile" to blend into your framebuffer
+    - Support for hardware interpolators on rp2040 (thanks @MichaelBell!)
+
+  Contributor bwaaaaaarks! 🦜
+
+    @MichaelBell - lots of bug fixes, performance boosts, and suggestions. 
+    @gadgetoid - integrating into the PicoVector library and testing.
+    
+*/
+
+#ifndef PP_INCLUDE_H
+#define PP_INCLUDE_H
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -599,3 +604,5 @@ void pp_render(pp_poly_t *polygon) {
 }
 
 #endif // PP_IMPLEMENTATION
+
+#endif // PP_INCLUDE_H
