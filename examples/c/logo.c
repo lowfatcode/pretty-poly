@@ -21,7 +21,7 @@ void blend_tile(const pp_tile_t *t) {
   for(int32_t y = t->y; y < t->y + t->h; y++) {
     for(int32_t x = t->x; x < t->x + t->w; x++) {     
       colour alpha_pen = pen;
-      alpha_pen.rgba.a = alpha(pen.rgba.a, pp_tile_get(t, x, y));
+      alpha_pen.a = alpha(pen.a, pp_tile_get(t, x, y));
       buffer[y][x] = blend(buffer[y][x], alpha_pen);
     }
   }
@@ -305,7 +305,7 @@ int main() {
 
     if(i == 360) {
       pp_mat3_t st = t;      
-      pp_mat3_translate(&st, 90, 90);
+      pp_mat3_translate(&st, 50, 50);
       pp_transform(&st);
       set_pen(create_colour(20, 30, 40, 160));
       pp_render(&polygon);

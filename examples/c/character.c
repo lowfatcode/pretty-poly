@@ -19,7 +19,7 @@ void blend_tile(const pp_tile_t *t) {
   for(int32_t y = t->y; y < t->y + t->h; y++) {
     for(int32_t x = t->x; x < t->x + t->w; x++) {     
       colour alpha_pen = pen;
-      alpha_pen.rgba.a = alpha(pen.rgba.a, pp_tile_get(t, x, y));
+      alpha_pen.a = alpha(pen.a, pp_tile_get(t, x, y));
       buffer[y][x] = blend(buffer[y][x], alpha_pen);
     }
   }
