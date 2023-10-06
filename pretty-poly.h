@@ -35,6 +35,12 @@
 #include <math.h>
 #include <stdbool.h>
 
+#ifndef PP_MALLOC
+#define PP_MALLOC(size)         malloc(size)
+#define PP_REALLOC(p, size)     realloc(p, size)
+#define PP_FREE(p)              free(p)
+#endif
+
 #ifndef PP_COORD_TYPE
 #define PP_COORD_TYPE float
 #endif
@@ -126,7 +132,7 @@ extern pp_mat3_t          *_pp_transform;
 void pp_clip(int32_t x, int32_t y, int32_t w, int32_t h);
 void pp_tile_callback(pp_tile_callback_t callback);
 void pp_antialias(pp_antialias_t antialias);
-void pp_transform(pp_mat3_t *transform);
+pp_mat3_t *pp_transform(pp_mat3_t *transform);
 void pp_render(pp_poly_t *polygon);
 
 #ifdef __cplusplus
@@ -265,6 +271,7 @@ pp_rect_t pp_polygon_bounds(pp_poly_t *p) {
 // buffer that each tile is rendered into before callback
 // allocate one extra byte to allow a small optimization in the row renderer
 const uint32_t tile_buffer_size = PP_TILE_BUFFER_SIZE;
+//uint8_t tile_buffer[tile_buffer_size + 1];
 uint8_t tile_buffer[tile_buffer_size + 1];
 
 // polygon node buffer handles at most 16 line intersections per scanline
@@ -290,8 +297,10 @@ void pp_antialias(pp_antialias_t antialias) {
   _pp_tile_width = (int)(tile_buffer_size / _pp_tile_height);
 }
 
-void pp_transform(pp_mat3_t *transform) {
+pp_mat3_t *pp_transform(pp_mat3_t *transform) {
+  pp_mat3_t *old = _pp_transform;
   _pp_transform = transform;
+  return old;
 }
 
 // write out the tile bits
