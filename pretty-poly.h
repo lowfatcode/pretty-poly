@@ -602,7 +602,7 @@ void pp_render(pp_poly_t *polygon) {
 
       pp_tile_t tile = {        
         .x = tb.x, .y = tb.y, .w = tb.w, .h = tb.h,
-        .stride = _pp_tile_width,
+        .stride = (uint32_t)_pp_tile_width,
         .data = tile_buffer + rb.x + _pp_tile_width * rb.y
       };
 
