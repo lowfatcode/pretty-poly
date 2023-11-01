@@ -135,6 +135,9 @@ void pp_antialias(pp_antialias_t antialias);
 pp_mat3_t *pp_transform(pp_mat3_t *transform);
 void pp_render(pp_poly_t *polygon);
 
+pp_rect_t pp_contour_bounds(const pp_path_t *c);
+pp_rect_t pp_polygon_bounds(pp_poly_t *p);
+
 #ifdef __cplusplus
 }
 #endif
