@@ -10,7 +10,7 @@ typedef union {
     uint8_t g;
     uint8_t b;
     uint8_t a;
-  } rgba;
+  };
   uint32_t c;
 } colour;
 
@@ -24,22 +24,20 @@ __attribute__((always_inline)) uint8_t blend_channel(uint8_t s, uint8_t d, uint8
 
 colour blend(colour dest, colour src) {
 
-  uint16_t a = alpha(src.rgba.a, dest.rgba.a);
-
-  if(src.rgba.a == 0) return dest;
-  if(src.rgba.a == 255) return src;
+  if(src.a == 0) return dest;
+  if(src.a == 255) return src;
 
   colour result;
-  result.rgba.r = blend_channel(src.rgba.r, dest.rgba.r, src.rgba.a);
-  result.rgba.g = blend_channel(src.rgba.g, dest.rgba.g, src.rgba.a);
-  result.rgba.b = blend_channel(src.rgba.b, dest.rgba.b, src.rgba.a);
-  result.rgba.a = dest.rgba.a > src.rgba.a ? dest.rgba.a : src.rgba.a;
+  result.r = blend_channel(src.r, dest.r, src.a);
+  result.g = blend_channel(src.g, dest.g, src.a);
+  result.b = blend_channel(src.b, dest.b, src.a);
+  result.a = dest.a > src.a ? dest.a : src.a;
 
   return result;
 }
 
 colour create_colour(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-  return (colour){ .rgba.r = r, .rgba.g = g, .rgba.b = b, .rgba.a = a };
+  return (colour){ .r = r, .g = g, .b = b, .a = a };
 }
 
 colour create_colour_hsv(float h, float s, float v, float a) {

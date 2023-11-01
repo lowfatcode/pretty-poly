@@ -1,34 +1,45 @@
-// Pretty Poly 🦜 - super-sampling polygon renderer for low resource platforms.
-//
-// Jonathan Williamson, August 2022
-// Examples, source, and more: https://github.com/lowfatcode/pretty-poly
-// MIT License https://github.com/lowfatcode/pretty-poly/blob/main/LICENSE
-// 
-// An easy way to render high quality text in embedded applications running 
-// on resource constrained microcontrollers such as the Cortex M0 and up.         
-//
-//   - Renders polygons: concave, self-intersecting, multi contour, holes, etc.
-//   - C17 header only library: simply copy the header file into your project
-//   - Tile based renderer: low memory footprint, cache coherency
-//   - Low memory usage: ~4kB of heap memory required
-//   - High speed on low resource platforms: optionally no floating point
-//   - Antialiasing modes: X1 (none), X4 and X16 super sampling
-//   - Bounds clipping: all results clipped to supplied clip rectangle
-//   - Pixel format agnostic: renders a "tile" to blend into your framebuffer
-//   - Support for hardware interpolators on rp2040 (thanks @MichaelBell!)
-//
-// Contributor bwaaaaaarks! 🦜
-//
-//   @MichaelBell - lots of bug fixes, performance boosts, and suggestions. 
-//   @gadgetoid - integrating into the PicoVector library and testing.
+/*
 
-#pragma once
+  Pretty Poly 🦜 - super-sampling polygon renderer for low resource platforms.
+
+  Jonathan Williamson, August 2022
+  Examples, source, and more: https://github.com/lowfatcode/pretty-poly
+  MIT License https://github.com/lowfatcode/pretty-poly/blob/main/LICENSE
+
+  An easy way to render high quality graphics in embedded applications running 
+  on resource constrained microcontrollers such as the Cortex M0 and up.         
+
+    - Renders polygons: concave, self-intersecting, multi contour, holes, etc.
+    - C11 header only library: simply copy the header file into your project
+    - Tile based renderer: low memory footprint, cache coherency
+    - Low memory usage: ~4kB of heap memory required
+    - High speed on low resource platforms: optionally no floating point
+    - Antialiasing modes: X1 (none), X4 and X16 super sampling
+    - Bounds clipping: all results clipped to supplied clip rectangle
+    - Pixel format agnostic: renders a "tile" to blend into your framebuffer
+    - Support for hardware interpolators on rp2040 (thanks @MichaelBell!)
+
+  Contributor bwaaaaaarks! 🦜
+
+    @MichaelBell - lots of bug fixes, performance boosts, and suggestions. 
+    @gadgetoid - integrating into the PicoVector library and testing.
+    
+*/
+
+#ifndef PP_INCLUDE_H
+#define PP_INCLUDE_H
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
+
+#ifndef PP_MALLOC
+#define PP_MALLOC(size)         malloc(size)
+#define PP_REALLOC(p, size)     realloc(p, size)
+#define PP_FREE(p)              free(p)
+#endif
 
 #ifndef PP_COORD_TYPE
 #define PP_COORD_TYPE float
@@ -121,8 +132,11 @@ extern pp_mat3_t          *_pp_transform;
 void pp_clip(int32_t x, int32_t y, int32_t w, int32_t h);
 void pp_tile_callback(pp_tile_callback_t callback);
 void pp_antialias(pp_antialias_t antialias);
-void pp_transform(pp_mat3_t *transform);
+pp_mat3_t *pp_transform(pp_mat3_t *transform);
 void pp_render(pp_poly_t *polygon);
+
+pp_rect_t pp_contour_bounds(const pp_path_t *c);
+pp_rect_t pp_polygon_bounds(pp_poly_t *p);
 
 #ifdef __cplusplus
 }
@@ -277,7 +291,7 @@ void pp_tile_callback(pp_tile_callback_t callback) {
 }
 
 // maximum tile bounds determined by antialias level
-int32_t _pp_tile_width, _pp_tile_height;
+uint32_t _pp_tile_width, _pp_tile_height;
 void pp_antialias(pp_antialias_t antialias) {
   _pp_antialias = antialias;
   // recalculate the tile size for rendering based on antialiasing level
@@ -285,8 +299,10 @@ void pp_antialias(pp_antialias_t antialias) {
   _pp_tile_width = (int)(tile_buffer_size / _pp_tile_height);
 }
 
-void pp_transform(pp_mat3_t *transform) {
+pp_mat3_t *pp_transform(pp_mat3_t *transform) {
+  pp_mat3_t *old = _pp_transform;
   _pp_transform = transform;
+  return old;
 }
 
 // write out the tile bits
@@ -453,7 +469,7 @@ pp_rect_t render_nodes(uint8_t *buffer, pp_rect_t *tb) {
   PP_COORD_TYPE aa_scale = (PP_COORD_TYPE)(1 << _pp_antialias);
   int anitialias_mask = (1 << _pp_antialias) - 1;
 
-  for(uint32_t y = 0; y < PP_NODE_BUFFER_HEIGHT; y++) {
+  for(int32_t y = 0; y < PP_NODE_BUFFER_HEIGHT; y++) {
     if(node_counts[y] == 0) {
       if (y == rb.y) ++rb.y;
       continue;
@@ -585,7 +601,7 @@ void pp_render(pp_poly_t *polygon) {
 
       pp_tile_t tile = {        
         .x = tb.x, .y = tb.y, .w = tb.w, .h = tb.h,
-        .stride = _pp_tile_width,
+        .stride = (uint32_t)_pp_tile_width,
         .data = tile_buffer + rb.x + _pp_tile_width * rb.y
       };
 
@@ -599,3 +615,5 @@ void pp_render(pp_poly_t *polygon) {
 }
 
 #endif // PP_IMPLEMENTATION
+
+#endif // PP_INCLUDE_H
