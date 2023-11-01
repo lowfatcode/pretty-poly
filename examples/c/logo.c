@@ -322,7 +322,7 @@ int main() {
   }
 
   uint64_t end = time_ms();
-  printf("render time: %llums", end - start);
+  printf("render time: %lums", end - start);
 
 
 
