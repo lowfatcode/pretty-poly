@@ -45,7 +45,7 @@ int main() {
   pp_path_t paths[] = {
     {.points = outline, .count = 4},
     {.points = hole,    .count = 4}
-  };
+  };  
   pp_poly_t poly = {.paths = paths, .count = 2};
   pp_render(&poly);
 
