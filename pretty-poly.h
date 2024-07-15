@@ -427,7 +427,7 @@ pp_rect_t render_nodes(pp_rect_t *tb) {
 
   debug("  + render tile %d, %d - %d, %d\n", tb->x, tb->y, tb->w, tb->h);
 
-  for(uint32_t y = 0; y < (PP_TILE_BUFFER_SIZE << _pp_antialias); y++) {
+  for(uint32_t y = 0; y < ((uint32_t)PP_TILE_BUFFER_SIZE << _pp_antialias); y++) {
 
     // debug("    : row %d node count %d\n", y, node_counts[y]);
 
