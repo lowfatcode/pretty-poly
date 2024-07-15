@@ -104,7 +104,7 @@ pp_rect_t pp_rect_merge(pp_rect_t *r1, pp_rect_t *r2);
 pp_rect_t pp_rect_transform(pp_rect_t *r, pp_mat3_t *m);
 
 // antialias levels
-typedef enum {PP_AA_NONE = 0, PP_AA_X4 = 1, PP_AA_X16 = 2} pp_antialias_t;
+typedef enum {PP_AA_NONE = 0, PP_AA_FAST = 1, PP_AA_X4 = 1, PP_AA_BEST = 2, PP_AA_X16 = 2} pp_antialias_t;
 
 typedef struct {
   int32_t x, y, w, h;
