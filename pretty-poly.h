@@ -36,12 +36,6 @@
 #include <math.h>
 #include <stdbool.h>
 
-#ifndef PP_MALLOC
-#define PP_MALLOC(size)         malloc(size)
-#define PP_REALLOC(p, size)     realloc(p, size)
-#define PP_FREE(p)              free(p)
-#endif
-
 #ifndef PP_COORD_TYPE
 #define PP_COORD_TYPE float
 #endif
@@ -61,12 +55,6 @@
 #if defined(PICO_ON_DEVICE) && PICO_ON_DEVICE
 #define USE_RP2040_INTERP
 #include "hardware/interp.h"
-#endif
-
-#ifdef PP_DEBUG
-#define debug(...) printf(__VA_ARGS__)
-#else
-#define debug(...)
 #endif
 
 #ifdef __cplusplus
@@ -144,6 +132,18 @@ pp_rect_t pp_polygon_bounds(pp_poly_t *p);
 #endif
 
 #ifdef PP_IMPLEMENTATION
+
+#ifndef PP_MALLOC
+#define PP_MALLOC(size)         malloc(size)
+#define PP_REALLOC(p, size)     realloc(p, size)
+#define PP_FREE(p)              free(p)
+#endif
+
+#ifdef PP_DEBUG
+#define debug(...) printf(__VA_ARGS__)
+#else
+#define debug(...)
+#endif
 
 pp_rect_t           _pp_clip = (pp_rect_t){-INT_MAX, -INT_MAX, INT_MAX, INT_MAX};
 pp_tile_callback_t  _pp_tile_callback = NULL;
@@ -437,7 +437,7 @@ pp_rect_t render_nodes(pp_rect_t *tb) {
 
     unsigned char* row_data = &tile_buffer[(y >> _pp_antialias) * PP_TILE_BUFFER_SIZE];
 
-    for(int i = 0; i < node_counts[y]; i += 2) {
+    for(uint32_t i = 0; i < node_counts[y]; i += 2) {
       int sx = nodes[y][i + 0];
       int ex = nodes[y][i + 1];
 

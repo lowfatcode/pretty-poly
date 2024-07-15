@@ -25,7 +25,7 @@ void blend_tile(const pp_tile_t *t) {
   }
 
   // draw border of tile for debugging
-  colour box = create_colour(160, 180, 200, 150);
+  /*colour box = create_colour(160, 180, 200, 150);
   for(int32_t x = t->x; x < t->x + t->w; x++) {     
     buffer[t->y][x] = blend(buffer[t->y][x], box);
     buffer[t->y + t->h][x] = blend(buffer[t->y + t->h][x], box);
@@ -33,7 +33,7 @@ void blend_tile(const pp_tile_t *t) {
   for(int32_t y = t->y; y < t->y + t->h; y++) {
     buffer[y][t->x] = blend(buffer[y][t->x], box);
     buffer[y][t->x + t->w] = blend(buffer[y][t->x + t->w], box);
-  }
+  }*/
 }
 
 
