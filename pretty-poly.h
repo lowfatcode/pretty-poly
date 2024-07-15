@@ -145,7 +145,7 @@ pp_rect_t pp_polygon_bounds(pp_poly_t *p);
 
 #ifdef PP_IMPLEMENTATION
 
-pp_rect_t           _pp_clip = (pp_rect_t){0, 0, 320, 240};
+pp_rect_t           _pp_clip = (pp_rect_t){-INT_MAX, -INT_MAX, INT_MAX, INT_MAX};
 pp_tile_callback_t  _pp_tile_callback = NULL;
 pp_antialias_t      _pp_antialias = PP_AA_X4;
 pp_mat3_t          *_pp_transform = NULL;
@@ -424,10 +424,10 @@ int compare_nodes(const void* a, const void* b) {
 
 pp_rect_t render_nodes(pp_rect_t *tb) {
   pp_rect_t rb = {PP_TILE_BUFFER_SIZE << _pp_antialias, PP_TILE_BUFFER_SIZE << _pp_antialias, 0, 0}; // render bounds
-
+  int maxx = 0, minx = PP_TILE_BUFFER_SIZE << _pp_antialias;
   debug("  + render tile %d, %d - %d, %d\n", tb->x, tb->y, tb->w, tb->h);
 
-  for(uint32_t y = 0; y < ((uint32_t)PP_TILE_BUFFER_SIZE << _pp_antialias); y++) {
+  for(int y = 0; y < ((int)PP_TILE_BUFFER_SIZE << _pp_antialias); y++) {
 
     // debug("    : row %d node count %d\n", y, node_counts[y]);
 
@@ -437,7 +437,7 @@ pp_rect_t render_nodes(pp_rect_t *tb) {
 
     unsigned char* row_data = &tile_buffer[(y >> _pp_antialias) * PP_TILE_BUFFER_SIZE];
 
-    for(uint32_t i = 0; i < node_counts[y]; i += 2) {
+    for(int i = 0; i < node_counts[y]; i += 2) {
       int sx = nodes[y][i + 0];
       int ex = nodes[y][i + 1];
 
@@ -447,9 +447,10 @@ pp_rect_t render_nodes(pp_rect_t *tb) {
 
       // update render bounds
       rb.x = _pp_min(rb.x, sx);
-      rb.y = _pp_min(rb.y, y);
-      rb.w = _pp_max(rb.w, ex - rb.x);
-      rb.h = _pp_max(rb.h, y - rb.y + 1);
+      rb.y = _pp_min(rb.y, y);      
+      minx = _pp_min(_pp_min(sx, ex), minx);
+      maxx = _pp_max(_pp_max(sx, ex), maxx);
+      rb.h = y - rb.y + 1;
 
       //debug(" - render span at %d from %d to %d\n", y, sx, ex);
 
@@ -459,6 +460,8 @@ pp_rect_t render_nodes(pp_rect_t *tb) {
       } while(++sx < ex);
     }
   }
+
+  rb.w = maxx - minx;
 
   // shifting the width and height effectively "floors" the result which can
   // mean we lose a pixel off the right or bottom edge of the tile. by adding
@@ -507,7 +510,7 @@ void pp_render(pp_poly_t *polygon) {
     polygon_bounds = pp_rect_transform(&polygon_bounds, _pp_transform);
   }
 
-  debug("  - bounds %d, %d (%d x %d)\n", polygon_bounds.x, polygon_bounds.y, polygon_bounds.w, polygon_bounds.h);
+  debug("  - polygon bounds %d, %d (%d x %d)\n", polygon_bounds.x, polygon_bounds.y, polygon_bounds.w, polygon_bounds.h);
   debug("  - clip %d, %d (%d x %d)\n", _pp_clip.x, _pp_clip.y, _pp_clip.w, _pp_clip.h);
 
 #ifdef USE_RP2040_INTERP

@@ -2,6 +2,7 @@
 #include "stb_image_write.h"
 
 #define PP_IMPLEMENTATION
+#define PP_DEBUG
 #include "pretty-poly.h"
 #include "helpers.h"
 
@@ -14,13 +15,24 @@ void set_pen(colour c) {
   pen = c;
 }
 
-void blend_tile(const pp_tile_t *t) {
-  for(int32_t y = t->y; y < t->y + t->h; y++) {
-    for(int32_t x = t->x; x < t->x + t->w; x++) {     
+void blend_tile(const pp_tile_t *t) {  
+  for(int y = t->y; y < t->y + t->h; y++) {
+    for(int x = t->x; x < t->x + t->w; x++) {     
       colour alpha_pen = pen;
       alpha_pen.a = alpha(pen.a, pp_tile_get(t, x, y));
       buffer[y][x] = blend(buffer[y][x], alpha_pen);
     }
+  }
+
+  // draw border of tile for debugging
+  colour box = create_colour(160, 180, 200, 150);
+  for(int32_t x = t->x; x < t->x + t->w; x++) {     
+    buffer[t->y][x] = blend(buffer[t->y][x], box);
+    buffer[t->y + t->h][x] = blend(buffer[t->y + t->h][x], box);
+  }
+  for(int32_t y = t->y; y < t->y + t->h; y++) {
+    buffer[y][t->x] = blend(buffer[y][t->x], box);
+    buffer[y][t->x + t->w] = blend(buffer[y][t->x + t->w], box);
   }
 }
 
@@ -35,7 +47,7 @@ int main() {
 
   for(int y = 0; y < HEIGHT; y++) {
     for(int x = 0; x < WIDTH; x++) {
-      buffer[x][y] = ((x / 8) + (y / 8)) % 2 == 0 ? create_colour(16, 32, 48, 255) : create_colour(0, 0, 0, 255);
+      buffer[y][x] = ((x / 8) + (y / 8)) % 2 == 0 ? create_colour(16, 32, 48, 255) : create_colour(0, 0, 0, 255);
     }
   }
 
@@ -47,8 +59,6 @@ int main() {
     {.points = hole,    .count = 4}
   };  
   pp_poly_t poly = {.paths = paths, .count = 2};
-  pp_render(&poly);
-
 
   for(int i = 0; i < 1000; i += 30) {
     pp_mat3_t t = pp_mat3_identity();
