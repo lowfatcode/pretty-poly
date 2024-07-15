@@ -108,6 +108,7 @@ typedef enum {PP_AA_NONE = 0, PP_AA_X4 = 1, PP_AA_X16 = 2} pp_antialias_t;
 
 typedef struct {
   int32_t x, y, w, h;
+  uint32_t stride;
   uint8_t *data;
 } pp_tile_t;
 
@@ -552,6 +553,7 @@ void pp_render(pp_poly_t *polygon) {
 
       pp_tile_t tile = {        
         .x = tb.x, .y = tb.y, .w = tb.w, .h = tb.h,
+        .stride = PP_TILE_BUFFER_SIZE,
         .data = tile_buffer + rb.x + (PP_TILE_BUFFER_SIZE * rb.y)
       };
 
