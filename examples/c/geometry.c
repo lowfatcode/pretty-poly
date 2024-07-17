@@ -51,6 +51,27 @@ int main() {
     }
   }
 
+  // pp_poly_t *poly = pp_make_poly();
+  // pp_path_t *outline = pp_poly_new_contours(poly);
+  // pp_contour_add_point(outline, {x, y});
+  // pp_contour_add_points(outline, {x, y}, {x, y}, {x, y}, {x, y}, {x, y});
+  // pp_contour_allocate_points(outline, 10);
+
+
+  // pp_poly_t *poly = pp_make_poly();
+  // pp_path_t *outline = pp_poly_new_contour(poly);
+  // pp_contour_add_point(outline, {x, y});
+
+
+  pp_poly_t *poly = pp_create_poly();
+  pp_polygon_allocate_paths(&poly, 2);
+  pp_path_t *outline = poly.paths;
+  pp_path_t *hole = poly.paths->next;
+
+  outline->points = pp_allocate_path_points(4);
+  hole->points = pp_allocate_path_points(4);
+
+  
   // create a 256 x 256 square centered around 0, 0 with a 128 x 128 hole
   pp_point_t outline[] = {{-128, -128}, {128, -128}, {128, 128}, {-128, 128}};
   pp_point_t hole[]    = {{ -64,   64}, { 64,   64}, { 64, -64}, { -64, -64}};
