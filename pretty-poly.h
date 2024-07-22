@@ -109,6 +109,7 @@ typedef struct _pp_path_t {
 void pp_path_add_point(pp_path_t *path, pp_point_t p);
 void pp_path_add_points(pp_path_t *path, pp_point_t *p, int count);
 void pp_path_add_path(pp_path_t *path, pp_path_t *other);
+void pp_path_union(pp_path_t *path, pp_path_t *other);
 pp_rect_t pp_path_bounds(const pp_path_t *c);
 
 typedef struct {
@@ -120,6 +121,7 @@ pp_path_t* pp_poly_tail_path(pp_poly_t *p);
 pp_path_t* pp_poly_add_path(pp_poly_t *p);
 pp_rect_t pp_poly_bounds(pp_poly_t *p);
 int pp_poly_path_count(pp_poly_t *p);
+void pp_poly_merge(pp_poly_t *p, pp_poly_t *m);
 
 // user settings
 typedef void (*pp_tile_callback_t)(const pp_tile_t *tile);
@@ -311,6 +313,17 @@ pp_path_t* pp_poly_add_path(pp_poly_t *poly) {
   return path;
 }
 
+void pp_poly_merge(pp_poly_t *p, pp_poly_t *m) {
+  if(!p->paths) {
+    p->paths = m->paths;
+  }else{
+    pp_poly_tail_path(p)->next = m->paths;
+  }
+
+  m->paths = NULL;
+  pp_poly_free(m);
+}
+
 pp_point_t* pp_path_tail_point(pp_path_t *path) {
   return (path->count > 0) ? &path->points[path->count -1] : NULL;
 }
@@ -329,7 +342,7 @@ void pp_path_add_points(pp_path_t *path, pp_point_t *points, int count) {
     path->points = realloc(path->points, sizeof(pp_point_t) * (count + path->count));
     path->storage = count + path->count;
   }
-  memcpy(&path->points[count], points, sizeof(pp_point_t) * count);
+  memcpy(&path->points[path->count], points, sizeof(pp_point_t) * count);
   path->count += count; 
 }
 
@@ -343,6 +356,10 @@ pp_rect_t pp_path_bounds(const pp_path_t *path) {
     maxy = _pp_max(maxy, path->points[i].y);
   }
   return (pp_rect_t){minx, miny, maxx - minx, maxy - miny};
+}
+
+void pp_path_union(pp_path_t *path, pp_path_t *other) {
+
 }
 
 pp_rect_t pp_polygon_bounds(pp_poly_t *p) {
@@ -403,7 +420,7 @@ void debug_tile(const pp_tile_t *tile) {
   debug("-----------------------\n");
 }
 
-void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
+void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end, pp_rect_t *tb) {
   int32_t sx = start.x, sy = start.y, ex = end.x, ey = end.y;
 
   if(ey < sy) {
@@ -415,13 +432,13 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
   }
 
   // early out if line is completely outside the tile, or has no gradient
-  if (ey < 0 || sy >= (int)(PP_TILE_BUFFER_SIZE << _pp_antialias) || sy == ey) return;
+  if (ey < 0 || sy >= (int)(tb->h << _pp_antialias) || sy == ey) return;
 
   debug("      + line segment from %d, %d to %d, %d\n", sx, sy, ex, ey);
 
   // determine how many in-bounds lines to render
   int y = _pp_max(0, sy);
-  int count = _pp_min((int)(PP_TILE_BUFFER_SIZE << _pp_antialias), ey) - y;
+  int count = _pp_min((int)(tb->h << _pp_antialias), ey) - y;
 
   int x = sx;
   int e = 0;
@@ -465,7 +482,7 @@ void add_line_segment_to_nodes(const pp_point_t start, const pp_point_t end) {
     while(e > dy) {e -= dy; x += xinc;}
 
     // clamp node x value to tile bounds
-    int nx = _pp_max(_pp_min(x, (PP_TILE_BUFFER_SIZE << _pp_antialias)), 0);        
+    int nx = _pp_max(_pp_min(x, (tb->w << _pp_antialias)), 0);        
     //debug("      + adding node at %d, %d\n", x, y);
     // add node to node list
     nodes[y][node_counts[y]++] = nx;
@@ -493,7 +510,7 @@ void build_nodes(pp_path_t *path, pp_rect_t *tb) {
     if(_pp_transform) next = pp_point_transform(&next, _pp_transform);
     next.x *= aa_scale; next.y *= aa_scale;
     next = pp_point_sub(&next, &tile_origin);
-    add_line_segment_to_nodes(last, next);
+    add_line_segment_to_nodes(last, next, tb);
     last = next;
   }
 }
