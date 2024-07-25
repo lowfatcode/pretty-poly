@@ -20,5 +20,6 @@
         "__locale": "c",
         "optional": "c",
         "pretty-poly.h": "c"
-    }
+    },
+    "C_Cpp.dimInactiveRegions": false
 }

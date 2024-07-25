@@ -330,8 +330,13 @@ pp_point_t* pp_path_tail_point(pp_path_t *path) {
 
 void pp_path_add_point(pp_path_t *path, pp_point_t p) {
   if(path->count == path->storage) { // no storage left, double buffer size
-    path->points = realloc(path->points, sizeof(pp_point_t) * (path->storage * 2));
-    path->storage *= 2;
+    if(path->points) {
+      path->storage *= 2;
+      path->points = realloc(path->points, sizeof(pp_point_t) * (path->storage));
+    }else{
+      path->storage = 8;
+      path->points = malloc(sizeof(pp_point_t) * (path->storage));
+    }    
   }
   path->points[path->count] = p;
   path->count++;
@@ -339,8 +344,8 @@ void pp_path_add_point(pp_path_t *path, pp_point_t p) {
 
 void pp_path_add_points(pp_path_t *path, pp_point_t *points, int count) {
   if(count + path->count > path->storage) { // not enough storage, allocate
-    path->points = realloc(path->points, sizeof(pp_point_t) * (count + path->count));
-    path->storage = count + path->count;
+    path->storage = path->count + count;
+    path->points = realloc(path->points, sizeof(pp_point_t) * (path->storage));    
   }
   memcpy(&path->points[path->count], points, sizeof(pp_point_t) * count);
   path->count += count; 
@@ -503,7 +508,7 @@ void build_nodes(pp_path_t *path, pp_rect_t *tb) {
   pp_point_t last = path->points[path->count - 1];
   if(_pp_transform) last = pp_point_transform(&last, _pp_transform);
   last.x *= aa_scale; last.y *= aa_scale;
-  last = pp_point_sub(&last, &tile_origin);
+  last = pp_point_sub(&last, &tile_origin);  
   
   for(int i = 0; i < path->count; i++) {
     pp_point_t next = path->points[i];      
