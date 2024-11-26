@@ -14,11 +14,11 @@ typedef union {
   uint32_t c;
 } colour;
 
-__attribute__((always_inline)) uint32_t alpha(uint32_t sa, uint32_t da) {
+__attribute__((always_inline)) inline uint32_t alpha(uint32_t sa, uint32_t da) {
   return ((sa + 1) * (da)) >> 8;
 }
 
-__attribute__((always_inline)) uint8_t blend_channel(uint8_t s, uint8_t d, uint8_t a) {
+__attribute__((always_inline)) inline uint8_t blend_channel(uint8_t s, uint8_t d, uint8_t a) {
   return d + ((a * (s - d) + 127) >> 8);
 }
 
