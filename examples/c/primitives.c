@@ -29,7 +29,7 @@ void blend_tile(const pp_tile_t *t) {
   }
 }
 
-/*
+
 pp_poly_t* f_gear(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_COORD_TYPE ir) {
   pp_poly_t *poly = pp_poly_new();
   pp_path_t *path = pp_poly_add_path(poly);
@@ -48,16 +48,16 @@ pp_poly_t* f_gear(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_
     pp_path_add_point(path, p);
   }  
   return poly;
-}*/
+}
 
 pp_poly_t* gear(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_COORD_TYPE ir, PP_COORD_TYPE t) {
-  /*pp_poly_t *outer = f_gear(x, y, c, or, ir);
-  pp_poly_t *inner = f_circ(x, y, ir - t);
+  pp_poly_t *outer = f_gear(x, y, c, or, ir);
+  pp_poly_t *inner = ppp_circle((ppp_circle_def){x, y, ir - t});
   outer->paths->next = inner->paths;
   inner->paths = NULL;
   free(inner);
-  return outer;  */
-  return NULL;
+  return outer;  
+  //return NULL;
 }
 
 
@@ -130,14 +130,15 @@ int main() {
         case 12: {
           poly = pp_poly_new();
           for(int i = 0; i < 10; i++) {
-            pp_poly_merge(poly, line(-size + i * (size / 5), -size, -size + i * (size / 5), size, i));        
+            pp_poly_merge(poly, ppp_line((ppp_line_def){-size + i * (size / 5), -size, -size + i * (size / 5), size, i}));        
           }
         }break;
         case 13: {
-          poly = line(-size, 0, size, 0, thickness);        
-          pp_poly_merge(poly, line(0, -size, 0, size, thickness));
-          pp_poly_merge(poly, line(-size * .7, -size * .7, size * .7, size * .7, thickness));
-          pp_poly_merge(poly, line(size * .7, -size * .7, -size * .7, size * .7, thickness));
+          ppp_line_def r = {-size, 0, size, 0, thickness};
+          poly = ppp_line(r);        
+          pp_poly_merge(poly, ppp_line((ppp_line_def){0, -size, 0, size, thickness}));
+          pp_poly_merge(poly, ppp_line((ppp_line_def){-size * .7, -size * .7, size * .7, size * .7, thickness}));
+          pp_poly_merge(poly, ppp_line((ppp_line_def){size * .7, -size * .7, -size * .7, size * .7, thickness}));
         }break;        
         case 14: {
           // poly = f_rrect(-size, -size, size * 2, size * 2, size * .5, size * .05, size * .15, size * .7);
