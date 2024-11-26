@@ -29,140 +29,7 @@ void blend_tile(const pp_tile_t *t) {
   }
 }
 
-
-// void _pp_round_rect_corner_points(pp_path_t *path, PP_COORD_TYPE cx, PP_COORD_TYPE cy, PP_COORD_TYPE r, int q) {
-//   float quality = 5; // higher the number, lower the quality - selected by experiment
-//   int steps = ceil(r / quality) + 2; // + 2 to include start and end
-//   float delta = -(M_PI / 2) / steps;
-//   float theta = (M_PI / 2) * q; // select start theta for this quadrant
-//   for(int i = 0; i <= steps; i++) {
-//     PP_COORD_TYPE xo = sin(theta) * r, yo = cos(theta) * r;
-//     pp_path_add_point(path, (pp_point_t){cx + xo, cy + yo});
-//     theta += delta;
-//   }
-// }
-
-// pp_poly_t* f_rrect(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE w, PP_COORD_TYPE h, PP_COORD_TYPE tlr, PP_COORD_TYPE trr, PP_COORD_TYPE brr, PP_COORD_TYPE blr) {
-//   pp_poly_t *poly = pp_poly_new();
-//   pp_path_t *path = pp_poly_add_path(poly);
-
-//   if(tlr == 0) {
-//     pp_path_add_point(path, (pp_point_t){x, y});
-//   }else{
-//     _pp_round_rect_corner_points(path, x + tlr, y + tlr, tlr, 3);
-//   }
-  
-//   if(trr == 0) {
-//     pp_path_add_point(path, (pp_point_t){x + w, y});
-//   }else{
-//     _pp_round_rect_corner_points(path, x + w - trr, y + trr, trr, 2);
-//   }
-
-//   if(brr == 0) {
-//     pp_path_add_point(path, (pp_point_t){x + w, y + h});
-//   }else{
-//     _pp_round_rect_corner_points(path, x + w - brr, y + h - brr, brr, 1);
-//   }
-
-//   if(blr == 0) {
-//     pp_path_add_point(path, (pp_point_t){x, y + h});
-//   }else{
-//     _pp_round_rect_corner_points(path, x + blr, y + h - blr, blr, 0);
-//   }
-
-//   return poly;
-// }
-
-// pp_poly_t* rrect(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE w, PP_COORD_TYPE h, PP_COORD_TYPE tlr, PP_COORD_TYPE trr, PP_COORD_TYPE brr, PP_COORD_TYPE blr, PP_COORD_TYPE t) {
-//   pp_poly_t *outer = f_rrect(x, y, w, h, tlr, trr, brr, blr);
-
-//   tlr = _pp_max(0, tlr - t);
-//   trr = _pp_max(0, trr - t);
-//   brr = _pp_max(0, brr - t);
-//   blr = _pp_max(0, blr - t);
-
-//   pp_poly_t *inner = f_rrect(x + t, y + t, w - 2 * t, h - 2 * t, tlr, trr, brr, blr);
-//   outer->paths->next = inner->paths;
-//   inner->paths = NULL;
-//   free(inner);
-//   return outer;
-// }
-
-// pp_poly_t* f_rect(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE w, PP_COORD_TYPE h) {
-//   pp_poly_t *poly = pp_poly_new();
-//   pp_path_t *path = pp_poly_add_path(poly);
-//   pp_path_add_points(path, (pp_point_t[]){{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}}, 4);
-//   return poly;
-// }
-
-// pp_poly_t* rect(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE w, PP_COORD_TYPE h, PP_COORD_TYPE t) {
-//   pp_poly_t *poly = pp_poly_new();
-//   pp_path_t *outer = pp_poly_add_path(poly), *inner = pp_poly_add_path(poly);
-//   pp_path_add_points(outer, (pp_point_t[]){{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}}, 4);
-//   x += t; y += t; w -= 2 * t; h -= 2 * t;
-//   pp_path_add_points(inner, (pp_point_t[]){{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}}, 4);
-//   return poly;
-// }
 /*
-pp_poly_t* f_reg(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE r, int s) {
-  pp_poly_t *poly = pp_poly_new();
-  pp_path_t *path = pp_poly_add_path(poly);
-  for(int i = 0; i < s; i++) {
-    pp_point_t p;
-    float step = ((M_PI * 2.0f) / (float)s) * (float)i;
-    p.x = sin(step) * r + x;
-    p.y = cos(step) * r + y;
-    pp_path_add_point(path, p);
-  }
-  return poly;
-}
-
-pp_poly_t* reg(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE r, int s, PP_COORD_TYPE t) {
-  pp_poly_t *outer = f_reg(x, y, r, s);
-  pp_poly_t *inner = f_reg(x, y, r - t, s);
-  outer->paths->next = inner->paths;
-  inner->paths = NULL;
-  free(inner);
-  return outer;
-}*/
-/*
-pp_poly_t* f_circ(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE r) {
-  int s = _pp_max(8, r);
-  return f_reg(x, y, r, s);
-}
-
-pp_poly_t* circ(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE r, PP_COORD_TYPE t) {
-  pp_poly_t *outer = f_circ(x, y, r);
-  pp_poly_t *inner = f_circ(x, y, r - t);
-  outer->paths->next = inner->paths;
-  inner->paths = NULL;
-  free(inner);
-  return outer;
-}*/
-
-pp_poly_t* f_star(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_COORD_TYPE ir) {
-  pp_poly_t *poly = pp_poly_new();
-  pp_path_t *path = pp_poly_add_path(poly);
-  for(int i = 0; i < c * 2; i++) {
-    pp_point_t p;
-    float step = ((M_PI * 2) / (float)(c * 2)) * (float)i;
-    PP_COORD_TYPE r = i % 2 == 0 ? or : ir; 
-    p.x = sin(step) * r + x;
-    p.y = cos(step) * r + y;
-    pp_path_add_point(path, p);
-  }  
-  return poly;
-}
-
-pp_poly_t* star(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_COORD_TYPE ir, PP_COORD_TYPE t) {
-  pp_poly_t *outer = f_star(x, y, c, or, ir);
-  pp_poly_t *inner = f_star(x, y, c, or - (t * or / ir), ir - t);
-  outer->paths->next = inner->paths;
-  inner->paths = NULL;
-  free(inner);
-  return outer;
-}
-
 pp_poly_t* f_gear(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_COORD_TYPE ir) {
   pp_poly_t *poly = pp_poly_new();
   pp_path_t *path = pp_poly_add_path(poly);
@@ -181,7 +48,7 @@ pp_poly_t* f_gear(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_
     pp_path_add_point(path, p);
   }  
   return poly;
-}
+}*/
 
 pp_poly_t* gear(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_COORD_TYPE ir, PP_COORD_TYPE t) {
   /*pp_poly_t *outer = f_gear(x, y, c, or, ir);
@@ -193,69 +60,6 @@ pp_poly_t* gear(PP_COORD_TYPE x, PP_COORD_TYPE y, int c, PP_COORD_TYPE or, PP_CO
   return NULL;
 }
 
-pp_poly_t* line(PP_COORD_TYPE x1, PP_COORD_TYPE y1, PP_COORD_TYPE x2, PP_COORD_TYPE y2, PP_COORD_TYPE t) {
-  pp_poly_t *poly = pp_poly_new();
-  pp_path_t *path = pp_poly_add_path(poly);
-
-  // create a normalised perpendicular vector
-  pp_point_t v = {y2 - y1, x2 - x1};
-  float mag = sqrt(v.x * v.x + v.y * v.y);
-  t /= 2.0f; v.x /= mag; v.y /= mag; v.x *= -t; v.y *= t;
-  pp_path_add_points(path, (pp_point_t[]){{x1 + v.x, y1 + v.y}, {x2 + v.x, y2 + v.y}, {x2 - v.x, y2 - v.y}, {x1 - v.x, y1 - v.y}}, 4);
-  return poly; 
-}
-
-/*
-pp_poly_t *pie(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE r, float sa, float ea) {
-  pp_poly_t *poly = pp_poly_new();
-  pp_path_t *path = pp_poly_add_path(poly);
-  pp_path_add_point(path, (pp_point_t){x, y});
-
-  sa = sa * (M_PI / 180.0f);
-  ea = ea * (M_PI / 180.0f);
-  int s = _pp_max(8, r);
-  float astep = (ea - sa) / s;
-  for(float a = sa; a < ea; a+=astep) {
-    pp_point_t p;
-    p.x = sin(a) * r + x;
-    p.y = cos(a) * r + y;
-    pp_path_add_point(path, p);
-  }
-
-  return poly;
-}
-
-
-pp_poly_t *arc(PP_COORD_TYPE x, PP_COORD_TYPE y, PP_COORD_TYPE r, float sa, float ea, PP_COORD_TYPE thickness) {
-  pp_poly_t *poly = pp_poly_new();
-  pp_path_t *path = pp_poly_add_path(poly);
-
-  sa = sa * (M_PI / 180.0f);
-  ea = ea * (M_PI / 180.0f);
-
-  int s = _pp_max(8, r);
-  float astep = (ea - sa) / s;
-  float a = sa;
-  for(int i = 0; i <= s; i++) {
-    pp_point_t p;
-    p.x = sin(a) * r + x;
-    p.y = cos(a) * r + y;
-    pp_path_add_point(path, p);
-    a += astep;
-  }
-
-  r -= thickness;
-  a = ea;
-  for(int i = 0; i <= s; i++) {
-    pp_point_t p;
-    p.x = sin(a) * r + x;
-    p.y = cos(a) * r + y;
-    pp_path_add_point(path, p);
-    a -= astep;
-  }
-
-  return poly;
-}*/
 
 int main() { 
   pp_tile_callback(blend_tile);
@@ -302,10 +106,12 @@ int main() {
           poly = ppp_regular(r);
         }break;
         case 6: {
-          poly = f_star(0, 0, 7, size, size * .75);        
+          ppp_star_def r = {0, 0, 7, size, size * 0.75f};
+          poly = ppp_star(r);
         }break;
         case 7: {
-          poly = star(0, 0, 7, size, size * .75, thickness);        
+          ppp_star_def r = {0, 0, 7, size, size * 0.75f, thickness};
+          poly = ppp_star(r);
         }break;
         case 8: {
           ppp_rect_def r = {-size, -size, size * 2, size * 2, 0, size * .5, size * .05, size * .15, size * .7};

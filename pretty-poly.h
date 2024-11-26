@@ -146,6 +146,7 @@ void pp_render(pp_poly_t *polygon);
 
 #ifndef PP_MALLOC
 #define PP_MALLOC(size)         malloc(size)
+#define PP_CALLOC(num, size)    calloc(num, size)
 #define PP_REALLOC(p, size)     realloc(p, size)
 #define PP_FREE(p)              free(p)
 #endif
